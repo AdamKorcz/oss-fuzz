@@ -15,6 +15,9 @@
 #
 ################################################################################
 
+if [ $SANITIZER == "coverage" ]; then
+	exit 0
+fi
 
 export LDFLAGS="${CFLAGS}"
 ./configure --enable-ctrls
