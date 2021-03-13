@@ -17,3 +17,4 @@
 
 mv $SRC/parser_fuzzer.go $SRC/caddy/caddyconfig/caddyfile/
 compile_go_fuzzer ./caddyconfig/caddyfile FuzzParser parser_fuzzer
+
