@@ -303,6 +303,14 @@ if [[ $FUZZING_LANGUAGE == "go" ]]; then
   echo $DUMPS_DIR
   $SYSGOPATH/bin/gocovmerge $DUMPS_DIR/*.profdata > fuzz.cov
   gotoolcover -html=fuzz.cov -o $REPORT_ROOT_DIR/index.html
+  
+  # beautify coverage report
+  python3.9 -m virtualenv .venv
+  . .venv/bin/activate
+  pip3 install -r /root/go-report-beautifier/requirements.txt
+  python3 /root/go-report-beautifier/beautify.py index.html index.html
+  deactivate
+
   $SYSGOPATH/bin/gocovsum fuzz.cov > $SUMMARY_FILE
   cp $REPORT_ROOT_DIR/index.html $REPORT_PLATFORM_DIR/index.html
   $SYSGOPATH/bin/pprof-merge $DUMPS_DIR/*.perf.cpu.prof

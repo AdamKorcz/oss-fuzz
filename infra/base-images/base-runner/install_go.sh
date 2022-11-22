@@ -28,6 +28,9 @@ case $(uname -m) in
       printf $(find . -name gocoverage)
       cd $GOPATH/gocoverage && /root/.go/bin/go install ./...
       cd convertcorpus && /root/.go/bin/go install .
+      cd ..
+      mkdir /root/go-report-beautifier
+      cp report-beautifier/* /root/go-report-beautifier/
       cd /root/.go/src/cmd/cover && /root/.go/bin/go build && mv cover $GOPATH/bin/gotoolcover
       ;;
     aarch64)
