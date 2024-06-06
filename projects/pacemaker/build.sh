@@ -15,10 +15,12 @@
 #
 ################################################################################
 
+export CFLAGS="$CFLAGS -Wno-deprecated-declarations"
+export CXXFLAGS="$CXXFLAGS -Wno-deprecated-declarations"
 make build -j$(nproc)
 
 for fuzzer in iso8601 cib_file; do
-  $CC $CFLAGS $LIB_FUZZING_ENGINE -c ./fuzzers/${fuzzer}_fuzzer.c          \
+  $CC $CFLAGS $LIB_FUZZING_ENGINE -Wno-deprecated-declarations -c ./fuzzers/${fuzzer}_fuzzer.c          \
    -I/usr/local/include/libxml2/ -I./include/crm/common -I./include        \
    -I./include/crm/ -I/usr/include/glib-2.0                                \
    -I/usr/lib/x86_64-linux-gnu/glib-2.0/include/
