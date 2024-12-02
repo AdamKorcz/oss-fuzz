@@ -115,7 +115,7 @@ function run_fuzz_target {
     # Extract fuzztest binary name from fuzztest wrapper script.
     target=(${target//@/ }[0])
   fi
-  profraw_update.py $OUT/$target -i $profraw_file_mask
+  profraw_update.py $OUT/$target $profraw_file_mask $profraw_file_mask
   llvm-profdata merge -j=1 -sparse $profraw_file_mask -o $profdata_file
 
   # Delete unnecessary and (potentially) large .profraw files.
@@ -135,25 +135,31 @@ function run_go_fuzz_target {
 
   echo "Running go target $target"
   export FUZZ_CORPUS_DIR="$CORPUS_DIR/${target}/"
+  export FUZZ_CORPUS_DIR="$OUT/${target}_seed_corpus/"
   export FUZZ_PROFILE_NAME="$DUMPS_DIR/$target.perf"
 
   # setup for native go fuzzers
-  cd $OUT
-  mkdir -p "testdata/fuzz/${target}"
-  cp -r "${FUZZ_CORPUS_DIR}" "testdata/fuzz/"
+  #cd $OUT
+  #mkdir -p "testdata/fuzz/${target}"
+  #cp -r "${FUZZ_CORPUS_DIR}" "testdata/fuzz/"
 
   # rewrite libFuzzer corpus to Std Go corpus if native fuzzing
-  grep "TestFuzzCorpus" $target > /dev/null 2>&1 && $SYSGOPATH/bin/convertcorpus $target "testdata/fuzz/${target}"
-  cd -
+  #grep "TestFuzzCorpus" $target > /dev/null 2>&1 && $SYSGOPATH/bin/convertcorpus $target "testdata/fuzz/${target}"
+  #cd -
 
-  timeout $TIMEOUT $OUT/$target -test.coverprofile $DUMPS_DIR/$target.profdata &> $LOGS_DIR/$target.log
+
+  echo "running binary...: "
+  timeout $TIMEOUT $OUT/$target -test.run=TestFuzzCorpus -test.coverprofile $DUMPS_DIR/$target.profdata &> $LOGS_DIR/$target.log
   if (( $? != 0 )); then
     echo "Error occured while running $target:"
     cat $LOGS_DIR/$target.log
   fi
+  #echo "LOG: "
+  #cat $LOGS_DIR/$target.log
+  #ls $DUMPS_DIR
 
   # cleanup after native go fuzzers
-  rm -r "${OUT}/testdata/fuzz/${target}"
+  #rm -r "${OUT}/testdata/fuzz/${target}"
 
   # The Go 1.18 fuzzers are renamed to "*_fuzz_.go" during "infra/helper.py build_fuzzers".
   # They are are therefore refered to as "*_fuzz_.go" in the profdata files.
@@ -162,9 +168,26 @@ function run_go_fuzz_target {
   # to the original file names.
   #sed -i "s/_test.go_fuzz_.go/_test.go/g" $DUMPS_DIR/$target.profdata
   # translate from golangish paths to current absolute paths
-  cat $OUT/$target.gocovpath | while read i; do sed -i $i $DUMPS_DIR/$target.profdata; done
+  rm $target-temp_profdata
+  echo catting
+  #cat $DUMPS_DIR/$target.profdata | while read line; do if ["${line}" != "mode: set" ]; then echo "${OUT}/${line}" >> temp_profdata; fi; done
+  echo "mode: set" > $target-temp_profdata
+  echo "temp_profdata contents: $(cat $target-temp_profdata)"
+  while read -r line
+  do
+    if [[ "$line" != "mode: set" ]]; then
+    	echo "${OUT}/src/${line}" >> $target-temp_profdata
+    fi
+  done < $DUMPS_DIR/$target.profdata
+  sed -i "s/libFuzzer/test/g" $target-temp_profdata
+  #cat temp_profdata | grep libFuzzer
+  mv $target-temp_profdata $DUMPS_DIR/$target.profdata
+  echo catting2
+  sed -i "s/libFuzzer/test/g" $DUMPS_DIR/$target.profdata
+  #cat $DUMPS_DIR/$target.gocovpath
   # cf PATH_EQUIVALENCE_ARGS
-  sed -i 's=/='$OUT'/=' $DUMPS_DIR/$target.profdata
+  echo "line 167"
+  #sed -i 's=/='$OUT'/=' $DUMPS_DIR/$target.profdata
   $SYSGOPATH/bin/gocovsum $DUMPS_DIR/$target.profdata > $FUZZER_STATS_DIR/$target.json
 }
 
@@ -180,7 +203,6 @@ function run_python_fuzz_target {
   if (( $? != 0 )); then
     echo "Error happened getting coverage of $target"
     echo "This is likely because Atheris did not exit gracefully"
-    cat $LOGS_DIR/$target.log
     return 0
   fi
   mv .coverage $OUT/.coverage_$target
@@ -379,9 +401,20 @@ done
 wait
 
 if [[ $FUZZING_LANGUAGE == "go" ]]; then
-  echo $DUMPS_DIR
-  $SYSGOPATH/bin/gocovmerge $DUMPS_DIR/*.profdata > fuzz.cov
-  gotoolcover -html=fuzz.cov -o $REPORT_ROOT_DIR/index.html
+  echo "On like 393"
+  echo "merging profile..."
+  #rm $DUMPS_DIR/FuzzRequestUnmarshalProto_pmetricotlp.profdata
+  for f in $DUMPS_DIR/*.profdata; do head -n 1 $f; done
+  $SYSGOPATH/bin/gocovmerge $DUMPS_DIR/*.profdata > $DUMPS_DIR/fuzz.cov
+  echo "Running gotoolcover..."
+
+  #cat $OUT/$target.gocovpath
+  #cat $OUT/$target.gocovpath | while read i; do sed -i $i $DUMPS_DIR/$target.profdata; done
+  #gotoolcover -html=fuzz.cov -o $REPORT_ROOT_DIR/index.html
+  #gotoolcover -html=$DUMPS_DIR/FuzzRequestUnmarshalJSON_plogotlp.profdata -o $REPORT_ROOT_DIR/index.html
+  gotoolcover -html=$DUMPS_DIR/fuzz.cov -o $REPORT_ROOT_DIR/index.html
+  which go
+  echo "Ran gotoolcover..."
   $SYSGOPATH/bin/gocovsum fuzz.cov > $SUMMARY_FILE
   cp $REPORT_ROOT_DIR/index.html $REPORT_PLATFORM_DIR/index.html
   $SYSGOPATH/bin/pprof-merge $DUMPS_DIR/*.perf.cpu.prof
