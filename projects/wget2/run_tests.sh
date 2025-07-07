@@ -1,4 +1,5 @@
-# Copyright 2016 Google Inc.
+#!/bin/bash -eu
+# Copyright 2025 Google LLC.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,17 +15,4 @@
 #
 ################################################################################
 
-FROM gcr.io/oss-fuzz-base/base-builder
-RUN apt-get update && apt-get install -y make autoconf automake libtool curl tcl zlib1g-dev tcl-dev
-
-# We won't be able to poll fossil for changes, so this will build
-# only once a day.
-RUN mkdir $SRC/sqlite3 && \
-    cd $SRC/sqlite3 && \
-    curl 'https://www.sqlite.org/src/tarball?uuid=trunk' -o sqlite3.tar.gz && \
-    tar xzf sqlite3.tar.gz
-
-RUN find $SRC/sqlite3 -name "*.test" | xargs zip $SRC/ossfuzz_seed_corpus.zip
-
-WORKDIR sqlite3
-COPY build.sh *.dict *.options run_tests.sh $SRC/
+make check
