@@ -143,6 +143,31 @@ function run_fuzz_target {
   llvm-cov show -instr-profile=$profdata_file -object=$target -line-coverage-gt=0 $shared_libraries $BRANCH_COV_ARGS $LLVM_COV_COMMON_ARGS > ${TEXTCOV_REPORT_DIR}/$target.covreport
 }
 
+# The native_go_fuzzers.json file contains a list of
+# fuzzers that are std lib harnesses. This function
+# reads that json list to see if the name of a fuzzer
+# exists in that list.
+is_std_lib_fuzzer() {
+  local element="$1"
+  local file="$OUT/native_go_fuzzers.json"
+
+  if [ -z "$element" ]; then
+    echo "Usage: check_in_list \"element to check\""
+    return 1
+  fi
+
+  if [ ! -s "$file" ]; then
+    echo "false"
+    return 0
+  fi
+
+  if jq -e --arg item "$element" 'index($item) != null' "$file" > /dev/null; then
+    echo "true"
+  else
+    echo "false"
+  fi
+}
+
 function run_go_fuzz_target {
   local target=$1
 

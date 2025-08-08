@@ -15,6 +15,30 @@
 #
 ################################################################################
 
+add_to_list_of_native_fuzzers() {
+  local new_element="$1"
+  local file="$OUT/native_go_fuzzers.json"
+
+  if [ -z "$new_element" ]; then
+    echo "Usage: add_to_list \"element to add\""
+    return 1
+  fi
+
+  # Ensure the directory exists
+  if [ ! -d "$(dirname "$file")" ]; then
+    echo "Error: Directory $(dirname "$file") does not exist."
+    return 1
+  fi
+
+  # Initialize the file if it doesn't exist or is empty
+  if [ ! -s "$file" ]; then
+    echo "[]" > "$file"
+  fi
+
+  # Append the new element to the list using jq
+  jq --arg item "$new_element" '. += [$item]' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
+}
+
 function build_native_go_fuzzer() {
 	fuzzer=$1
 	function=$2

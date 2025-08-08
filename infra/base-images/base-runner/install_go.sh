@@ -28,7 +28,6 @@ case $(uname -m) in
       printf $(find . -name gocoverage)
       cd $GOPATH/gocoverage && /root/.go/bin/go install ./...
       cd /root/.go/src/cmd/cover && /root/.go/bin/go build && mv cover $GOPATH/bin/gotoolcover
-      cp $GOPATH/gocoverage/scripts/is_std_lib_fuzzer /usr/local/bin/
       pushd /tmp
         git clone --depth=1 https://github.com/AdamKorcz/go-118-fuzz-build --branch=v2
         cd go-118-fuzz-build/cmd/libFuzzerCorpusToStdLibCorpus
