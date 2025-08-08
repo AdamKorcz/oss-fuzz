@@ -175,6 +175,8 @@ function run_go_fuzz_target {
   export FUZZ_CORPUS_DIR="$CORPUS_DIR/${target}/"
   export FUZZ_PROFILE_NAME="$DUMPS_DIR/$target.perf"
 
+  cp $OUT/"${target}"_corpus_libFuzzer/* FUZZ_CORPUS_DIR="$CORPUS_DIR/${target}/"
+
   ## Now we want to do something like:
   if [[ "$(is_std_lib_fuzzer "${target}")" == "true" ]]; then
     echo "This is a std lib fuzzer"

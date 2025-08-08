@@ -47,20 +47,37 @@ function build_native_go_fuzzer() {
 
 	if [[ $SANITIZER == *coverage* ]]; then
 		current_dir=$(pwd)
+		fuzzed_repo=$(go list $tags -f {{.Module}} "$path")
 		mkdir $OUT/rawfuzzers || true
 		cd $abs_file_dir
-		go test $tags -c -run $fuzzer -o $OUT/$fuzzer -cover
+		go test $tags -c -run $fuzzer -o $OUT/$fuzzer -coverpkg=$fuzzed_repo/... -covermode=atomic
 		cp "${fuzzer_filename}" "${OUT}/rawfuzzers/${fuzzer}"
 
-		fuzzed_repo=$(go list $tags -f {{.Module}} "$path")
   		abspath_repo=`go list -m $tags -f {{.Dir}} $fuzzed_repo || go list $tags -f {{.Dir}} $fuzzed_repo`
   		# give equivalence to absolute paths in another file, as go test -cover uses golangish pkg.Dir
   		echo "s=$fuzzed_repo"="$abspath_repo"= > $OUT/$fuzzer.gocovpath
   		add_to_list_of_native_fuzzers "${fuzzer}"
 		cd $current_dir
 	else
+		# For testing: Run the fuzzer with go test -fuzz to collect corpus
+		#fuzzed_repo=$(go list $tags -f {{.Module}} "$path")
+		cd $abs_file_dir
+		echo "go test . -fuzz=$function -fuzztime=10s"
+		go test . -fuzz=$function -fuzztime=10s
+		go_list=$(go list)
+		gocache=$(go env -json | jq -r '.GOCACHE')
+		rm -r mkdir $OUT/"${fuzzer}"_seed_stdlib || true
+		ls "${gocache}/fuzz/${go_list}"
+		ls "${gocache}/fuzz/${go_list}/${function}"
+		cp -r "${gocache}/fuzz/${go_list}/${function}" $OUT/"${fuzzer}"_seed_stdlib
+		cd -
+
 		go-118-fuzz-build $tags -o $fuzzer.a -func $function $abs_file_dir
 		$CXX $CXXFLAGS $LIB_FUZZING_ENGINE $fuzzer.a -o $OUT/$fuzzer
+		# For testing: Run the fuzzer 10 minutes and collect the corpus.
+		mkdir $OUT/"${fuzzer}"_seed_libFuzzer || true
+		mkdir $OUT/"${fuzzer}"_corpus_libFuzzer || true
+		$OUT/$fuzzer -max_total_time=10 $OUT/"${fuzzer}"_seed_libFuzzer $OUT/"${fuzzer}"_corpus_libFuzzer
 	fi
 }
 
