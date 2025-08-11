@@ -42,21 +42,24 @@ add_to_list_of_native_fuzzers() {
 function build_native_go_fuzzer() {
 	fuzzer=$1
 	function=$2
-	path=$3
+	abs_path=$3
+	package_path=$4
 	tags="-tags gofuzz"
 
 	if [[ $SANITIZER == *coverage* ]]; then
 		current_dir=$(pwd)
-		fuzzed_repo=$(go list $tags -f {{.Module}} "$path")
+		fuzzed_repo=$(go list $tags -f {{.Module}} "$abs_path")
 		mkdir $OUT/rawfuzzers || true
 		cd $abs_file_dir
-		go test $tags -c -run $fuzzer -o $OUT/$fuzzer -coverpkg=$fuzzed_repo/... -covermode=atomic
+		go test $tags -c -o $OUT/$fuzzer -coverpkg=$fuzzed_repo/... -covermode=atomic $package_path
+		echo "testing running test binary. this should return 'PASS'"
+		$OUT/$fuzzer -test.run=$fuzzer
 		cp "${fuzzer_filename}" "${OUT}/rawfuzzers/${fuzzer}"
 
-  		abspath_repo=`go list -m $tags -f {{.Dir}} $fuzzed_repo || go list $tags -f {{.Dir}} $fuzzed_repo`
-  		# give equivalence to absolute paths in another file, as go test -cover uses golangish pkg.Dir
-  		echo "s=$fuzzed_repo"="$abspath_repo"= > $OUT/$fuzzer.gocovpath
-  		add_to_list_of_native_fuzzers "${fuzzer}"
+		abspath_repo=`go list -m $tags -f {{.Dir}} $fuzzed_repo || go list $tags -f {{.Dir}} $fuzzed_repo`
+		# give equivalence to absolute paths in another file, as go test -cover uses golangish pkg.Dir
+		echo "s=$fuzzed_repo"="$abspath_repo"= > $OUT/$fuzzer.gocovpath
+		add_to_list_of_native_fuzzers "${fuzzer}"
 		cd $current_dir
 	else
 		# For testing: Run the fuzzer with go test -fuzz to collect corpus
@@ -66,18 +69,21 @@ function build_native_go_fuzzer() {
 		go test . -fuzz=$function -fuzztime=10s
 		go_list=$(go list)
 		gocache=$(go env -json | jq -r '.GOCACHE')
-		rm -r mkdir $OUT/"${fuzzer}"_seed_stdlib || true
+		mkdir -p $OUT/testing-seeds
+		rm -r "$OUT/testing-seeds/${fuzzer}_seed_stdlib" || true
 		ls "${gocache}/fuzz/${go_list}"
 		ls "${gocache}/fuzz/${go_list}/${function}"
-		cp -r "${gocache}/fuzz/${go_list}/${function}" $OUT/"${fuzzer}"_seed_stdlib
+		cp -r "${gocache}/fuzz/${go_list}/${function}" "$OUT/testing-seeds/${fuzzer}_seed_stdlib"
 		cd -
 
+		# this is the only thing we really need
 		go-118-fuzz-build $tags -o $fuzzer.a -func $function $abs_file_dir
 		$CXX $CXXFLAGS $LIB_FUZZING_ENGINE $fuzzer.a -o $OUT/$fuzzer
+		# end of what we really only need
 		# For testing: Run the fuzzer 10 minutes and collect the corpus.
-		mkdir $OUT/"${fuzzer}"_seed_libFuzzer || true
-		mkdir $OUT/"${fuzzer}"_corpus_libFuzzer || true
-		$OUT/$fuzzer -max_total_time=10 $OUT/"${fuzzer}"_seed_libFuzzer $OUT/"${fuzzer}"_corpus_libFuzzer
+		mkdir -p "$OUT/testing-seeds/${fuzzer}_seed_libFuzzer" || true
+		mkdir -p "$OUT/testing-seeds/${fuzzer}_corpus_libFuzzer" || true
+		$OUT/$fuzzer -max_total_time=10 "$OUT/testing-seeds/${fuzzer}_seed_libFuzzer" "$OUT/testing-seeds/${fuzzer}_corpus_libFuzzer"
 	fi
 }
 
@@ -95,7 +101,7 @@ fuzzer_filename=$(grep -r -l --include='*.go' -s "$function" "${abs_file_dir}")
 # Test if file contains a line with "func $function" and "testing.F".
 if [ $(grep -r "func $function" $fuzzer_filename | grep "testing.F" | wc -l) -eq 1 ]
 then
-	build_native_go_fuzzer $fuzzer $function $abs_file_dir
+	build_native_go_fuzzer $fuzzer $function $abs_file_dir $path
 else
 	echo "Could not find the function: func ${function}(f *testing.F)"
 fi

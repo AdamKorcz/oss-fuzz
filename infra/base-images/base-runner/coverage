@@ -175,7 +175,7 @@ function run_go_fuzz_target {
   export FUZZ_CORPUS_DIR="$CORPUS_DIR/${target}/"
   export FUZZ_PROFILE_NAME="$DUMPS_DIR/$target.perf"
 
-  cp $OUT/"${target}"_corpus_libFuzzer/* FUZZ_CORPUS_DIR="$CORPUS_DIR/${target}/"
+  #cp $OUT/"${target}"_corpus_libFuzzer/* FUZZ_CORPUS_DIR="$CORPUS_DIR/${target}/"
 
   ## Now we want to do something like:
   if [[ "$(is_std_lib_fuzzer "${target}")" == "true" ]]; then
@@ -183,13 +183,17 @@ function run_go_fuzz_target {
     # setup for native go fuzzers
     cd $OUT
     mkdir -p "testdata/fuzz/${target}"
-    cp -r "${FUZZ_CORPUS_DIR}" "testdata/fuzz/${target}"
+    #cp -r "${FUZZ_CORPUS_DIR}" "testdata/fuzz/${target}"
+    cp "$OUT"/testing-seeds/"${target}"_seed_libFuzzer/* "${FUZZ_CORPUS_DIR}/" || true
+    cp "$OUT"/testing-seeds/"${target}"_corpus_libFuzzer/* "${FUZZ_CORPUS_DIR}/" || true
 
     # Convert corpus
+    echo "running libFuzzerCorpusToStdLibCorpus"
     libFuzzerCorpusToStdLibCorpus -in "${FUZZ_CORPUS_DIR}" -out "testdata/fuzz/${target}"
-    timeout $TIMEOUT $OUT/$target -test.coverprofile $DUMPS_DIR/$target.profdata &> $LOGS_DIR/$target.log
+    find "testdata/fuzz/${target}" -type f -exec cat {} \;
+    timeout $TIMEOUT $OUT/$target -test.run=$target -test.coverprofile $DUMPS_DIR/$target.profdata &> $LOGS_DIR/$target.log
     if (( $? != 0 )); then
-      echo "Error occured while running $target:"
+      echo "Error occured while running std lib fuzzer $target:"
       cat $LOGS_DIR/$target.log
     fi
     # cleanup after native go fuzzers
@@ -201,6 +205,7 @@ function run_go_fuzz_target {
     # to the original file names.
     sed -i "s/_libFuzzer.go/_test.go/g" $DUMPS_DIR/$target.profdata
   else
+    echo "this is not a std lib fuzzer"
     timeout $TIMEOUT $OUT/$target -test.coverprofile $DUMPS_DIR/$target.profdata &> $LOGS_DIR/$target.log
     if (( $? != 0 )); then
       echo "Error occured while running $target:"
