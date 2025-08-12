@@ -30,9 +30,9 @@ case $(uname -m) in
       cd /root/.go/src/cmd/cover && /root/.go/bin/go build && mv cover $GOPATH/bin/gotoolcover
       pushd /tmp
         git clone --depth=1 https://github.com/AdamKorcz/go-118-fuzz-build --branch=v2
-        cd go-118-fuzz-build/cmd/libFuzzerCorpusToStdLibCorpus
+        cd go-118-fuzz-build/cmd/convertLibFuzzerTestcaseToStdLibGo
         /root/.go/bin/go build .
-        mv libFuzzerCorpusToStdLibCorpus $GOPATH/bin/
+        mv convertLibFuzzerTestcaseToStdLibGo $GOPATH/bin/
       popd
       ;;
     aarch64)

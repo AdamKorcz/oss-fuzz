@@ -183,13 +183,21 @@ function run_go_fuzz_target {
     # setup for native go fuzzers
     cd $OUT
     mkdir -p "testdata/fuzz/${target}"
-    #cp -r "${FUZZ_CORPUS_DIR}" "testdata/fuzz/${target}"
+    #This is just for testing:"
     cp "$OUT"/testing-seeds/"${target}"_seed_libFuzzer/* "${FUZZ_CORPUS_DIR}/" || true
     cp "$OUT"/testing-seeds/"${target}"_corpus_libFuzzer/* "${FUZZ_CORPUS_DIR}/" || true
 
     # Convert corpus
-    echo "running libFuzzerCorpusToStdLibCorpus"
-    libFuzzerCorpusToStdLibCorpus -in "${FUZZ_CORPUS_DIR}" -out "testdata/fuzz/${target}"
+    #echo "running convertLibFuzzerTestcaseToStdLibGo"
+    cat ../../build/out/fasthttp/fuzzer-parameters.json
+    convertLibFuzzerTestcaseToStdLibGo -convert-seeds \
+      -params-json $OUT/fuzzer-parameters.json \
+      -fuzzer-func "${target}" \
+      -fuzzerBinaryName $target \
+      -seeds-dir "${FUZZ_CORPUS_DIR}" \
+      -out-dir "testdata/fuzz/${target}"
+    #convertLibFuzzerTestcaseToStdLibGo -in "${FUZZ_CORPUS_DIR}" -out "testdata/fuzz/${target}"
+
     find "testdata/fuzz/${target}" -type f -exec cat {} \;
     timeout $TIMEOUT $OUT/$target -test.run=$target -test.coverprofile $DUMPS_DIR/$target.profdata &> $LOGS_DIR/$target.log
     if (( $? != 0 )); then

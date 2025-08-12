@@ -15,8 +15,19 @@
 #
 ################################################################################
 
-go get github.com/AdamKorcz/go-118-fuzz-build/testing
+cd $SRC
+git clone https://github.com/AdamKorcz/go-118-fuzz-build --branch=v2
+cd $SRC/go-118-fuzz-build
+go build .
+mv go-118-fuzz-build /root/go/bin/
 
+cd $SRC/fasthttp
+rm lbclient_example_test.go
+rm client_example_test.go
+rm requestctx_setbodystreamwriter_example_test.go
+rm fs_handler_example_test.go
+rm server_example_test.go
+rm fs_example_test.go
 compile_native_go_fuzzer github.com/valyala/fasthttp FuzzCookieParse fuzzCookieParse
 compile_native_go_fuzzer github.com/valyala/fasthttp FuzzVisitHeaderParams fuzzVisitHeaderParams
 compile_native_go_fuzzer github.com/valyala/fasthttp FuzzResponseReadLimitBody fuzzResponseReadLimitBody

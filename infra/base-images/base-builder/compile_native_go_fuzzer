@@ -49,17 +49,26 @@ function build_native_go_fuzzer() {
 	if [[ $SANITIZER == *coverage* ]]; then
 		current_dir=$(pwd)
 		fuzzed_repo=$(go list $tags -f {{.Module}} "$abs_path")
-		mkdir $OUT/rawfuzzers || true
+		#mkdir $OUT/rawfuzzers || true
 		cd $abs_file_dir
 		go test $tags -c -o $OUT/$fuzzer -coverpkg=$fuzzed_repo/... -covermode=atomic $package_path
 		echo "testing running test binary. this should return 'PASS'"
 		$OUT/$fuzzer -test.run=$fuzzer
-		cp "${fuzzer_filename}" "${OUT}/rawfuzzers/${fuzzer}"
+		#cp "${fuzzer_filename}" "${OUT}/rawfuzzers/${fuzzer}"
 
 		abspath_repo=`go list -m $tags -f {{.Dir}} $fuzzed_repo || go list $tags -f {{.Dir}} $fuzzed_repo`
 		# give equivalence to absolute paths in another file, as go test -cover uses golangish pkg.Dir
 		echo "s=$fuzzed_repo"="$abspath_repo"= > $OUT/$fuzzer.gocovpath
 		add_to_list_of_native_fuzzers "${fuzzer}"
+		convertLibFuzzerTestcaseToStdLibGo \
+		  -write-params \
+		  -file $fuzzer_filename \
+		  -fuzzer-func $function \
+		  -fuzzerBinaryName $fuzzer \
+		  -json-out $OUT/fuzzer-parameters.json
+		ls $OUT -la
+		cat $OUT/fuzzer-parameters.json
+		#getFuzzerArguments -file $fuzzer_filename -fuzzer-func $function -json-out $OUT/fuzzer-parameters.json
 		cd $current_dir
 	else
 		# For testing: Run the fuzzer with go test -fuzz to collect corpus
@@ -96,7 +105,7 @@ tags="-tags gofuzz"
 abs_file_dir=$(go list $tags -f {{.Dir}} $path)
 
 # TODO(adamkorcz): Get rid of "-r" flag here.
-fuzzer_filename=$(grep -r -l --include='*.go' -s "$function" "${abs_file_dir}")
+export fuzzer_filename=$(grep -r -l --include='*.go' -s "$function" "${abs_file_dir}")
 
 # Test if file contains a line with "func $function" and "testing.F".
 if [ $(grep -r "func $function" $fuzzer_filename | grep "testing.F" | wc -l) -eq 1 ]

@@ -36,8 +36,13 @@ if [ -f "$GOPATH/gosigfuzz/gosigfuzz.c" ]; then
     clang -c $GOPATH/gosigfuzz/gosigfuzz.c -o $GOPATH/gosigfuzz/gosigfuzz.o
 fi
 
+
+echo hiii
 cd /tmp
 git clone https://github.com/AdamKorcz/go-118-fuzz-build
 cd go-118-fuzz-build
 go build
 mv go-118-fuzz-build $GOPATH/bin/
+
+git checkout v2
+cd cmd/convertLibFuzzerTestcaseToStdLibGo && go build && mv convertLibFuzzerTestcaseToStdLibGo $GOPATH/bin/
