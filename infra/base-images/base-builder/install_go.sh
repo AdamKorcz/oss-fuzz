@@ -37,7 +37,7 @@ if [ -f "$GOPATH/gosigfuzz/gosigfuzz.c" ]; then
 fi
 
 
-echo hiii
+echo hiiiii
 cd /tmp
 git clone https://github.com/AdamKorcz/go-118-fuzz-build
 cd go-118-fuzz-build

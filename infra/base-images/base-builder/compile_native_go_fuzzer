@@ -74,8 +74,8 @@ function build_native_go_fuzzer() {
 		# For testing: Run the fuzzer with go test -fuzz to collect corpus
 		#fuzzed_repo=$(go list $tags -f {{.Module}} "$path")
 		cd $abs_file_dir
-		echo "go test . -fuzz=$function -fuzztime=10s"
-		go test . -fuzz=$function -fuzztime=10s
+		echo "go test . -fuzz=$function -fuzztime=100s"
+		go test . -fuzz=$function -fuzztime=100s
 		go_list=$(go list)
 		gocache=$(go env -json | jq -r '.GOCACHE')
 		mkdir -p $OUT/testing-seeds
@@ -92,7 +92,7 @@ function build_native_go_fuzzer() {
 		# For testing: Run the fuzzer 10 minutes and collect the corpus.
 		mkdir -p "$OUT/testing-seeds/${fuzzer}_seed_libFuzzer" || true
 		mkdir -p "$OUT/testing-seeds/${fuzzer}_corpus_libFuzzer" || true
-		$OUT/$fuzzer -max_total_time=10 "$OUT/testing-seeds/${fuzzer}_seed_libFuzzer" "$OUT/testing-seeds/${fuzzer}_corpus_libFuzzer"
+		$OUT/$fuzzer -max_total_time=100 "$OUT/testing-seeds/${fuzzer}_seed_libFuzzer" "$OUT/testing-seeds/${fuzzer}_corpus_libFuzzer"
 	fi
 }
 
