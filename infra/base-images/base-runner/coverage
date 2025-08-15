@@ -399,7 +399,6 @@ for fuzz_target in $FUZZ_TARGETS; do
     echo ${fuzz_target} >> $COVERAGE_TARGET_FILE
 
     # Run the coverage collection.
-    echo "running go fuzz target-------------------------"
     run_go_fuzz_target $fuzz_target &
   elif [[ $FUZZING_LANGUAGE == "python" ]]; then
     echo "Entering python fuzzing"

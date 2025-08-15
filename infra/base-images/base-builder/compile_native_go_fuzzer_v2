@@ -1,5 +1,5 @@
 #!/bin/bash -eu
-# Copyright 2022 Google LLC
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ source "$SCRIPT_DIR/go_utils.sh"
 # Test if file contains a line with "func $function" and "testing.F".
 if [ $(grep -r "func $function" $fuzzer_filename | grep "testing.F" | wc -l) -eq 1 ]
 then
-	build_native_go_fuzzer_legacy $fuzzer $function $abs_file_dir $path
+  build_native_go_fuzzer $fuzzer $function $abs_file_dir $path
 else
-	echo "Could not find the function: func ${function}(f *testing.F)"
+  echo "Could not find the function: func ${function}(f *testing.F)"
 fi
