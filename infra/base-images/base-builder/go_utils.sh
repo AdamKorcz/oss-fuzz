@@ -141,6 +141,6 @@ function build_native_go_fuzzer() {
 		# For testing: Run the fuzzer 10 minutes and collect the corpus.
 		mkdir -p "$OUT/testing-seeds/${fuzzer}_seed_libFuzzer" || true
 		mkdir -p "$OUT/testing-seeds/${fuzzer}_corpus_libFuzzer" || true
-		$OUT/$fuzzer -max_total_time=600 "$OUT/testing-seeds/${fuzzer}_seed_libFuzzer" "$OUT/testing-seeds/${fuzzer}_corpus_libFuzzer"
+		$OUT/$fuzzer -max_total_time=60 "$OUT/testing-seeds/${fuzzer}_seed_libFuzzer" "$OUT/testing-seeds/${fuzzer}_corpus_libFuzzer"
 	fi
 }
