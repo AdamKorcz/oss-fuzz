@@ -15,15 +15,12 @@
 #
 ################################################################################
 
-cd $SRC/go-118-fuzz-build
-  go build .
-  mv go-118-fuzz-build /root/go/bin/
-cd -
-
 # cpio pkg  
 cd $SRC/u-root/pkg/cpio
+#go mod init cpio
+printf "package cpio\nimport _ \"github.com/AdamKorcz/go-118-fuzz-build/testing\"\n" > registerfuzzdep.go
 go mod tidy
-#go mod vendor
+go mod vendor
 
 cp $SRC/u-root/pkg/cpio/testdata/fuzz/*.dict $SRC/u-root/pkg/cpio/testdata/fuzz/*.options $OUT
 
@@ -37,7 +34,7 @@ compile_native_go_fuzzer $SRC/u-root/pkg/cpio FuzzWriteReadInMemArchive fuzz_wri
 # grub pkg  
 cd $SRC/u-root/pkg/boot/grub
 #go mod init grub
-#printf "package grub\nimport _ \"github.com/AdamKorcz/go-118-fuzz-build/testing\"\n" > registerfuzzdep.go
+printf "package grub\nimport _ \"github.com/AdamKorcz/go-118-fuzz-build/testing\"\n" > registerfuzzdep.go
 go mod tidy
 
 cp $SRC/u-root/pkg/boot/grub/testdata/fuzz/*.dict $SRC/u-root/pkg/boot/grub/testdata/fuzz/*.options $OUT
@@ -64,7 +61,7 @@ compile_native_go_fuzzer $SRC/u-root/pkg/boot/grub FuzzParseGrubConfig fuzz_pars
 # syslinux pkg
 cd $SRC/u-root/pkg/boot/syslinux
 #go mod init syslinux
-#printf "package syslinux\nimport _ \"github.com/AdamKorcz/go-118-fuzz-build/testing\"\n" > registerfuzzdep.go
+printf "package syslinux\nimport _ \"github.com/AdamKorcz/go-118-fuzz-build/testing\"\n" > registerfuzzdep.go
 go mod tidy
 
 cp $SRC/u-root/pkg/boot/syslinux/testdata/fuzz/*.dict $SRC/u-root/pkg/boot/syslinux/testdata/fuzz/*.options $OUT
@@ -89,7 +86,7 @@ compile_native_go_fuzzer $SRC/u-root/pkg/boot/syslinux FuzzParseSyslinuxConfig f
 # esxi pkg
 cd $SRC/u-root/pkg/boot/esxi
 #go mod init esxi
-#printf "package esxi\nimport _ \"github.com/AdamKorcz/go-118-fuzz-build/testing\"\n" > registerfuzzdep.go
+printf "package esxi\nimport _ \"github.com/AdamKorcz/go-118-fuzz-build/testing\"\n" > registerfuzzdep.go
 go mod tidy
 cp $SRC/u-root/pkg/boot/esxi/testdata/fuzz/*.dict $SRC/u-root/pkg/boot/esxi/testdata/fuzz/*.options $OUT
 
@@ -100,7 +97,7 @@ compile_native_go_fuzzer $SRC/u-root/pkg/boot/esxi FuzzParse fuzz_esxi_parse
 # ipxe pkg
 cd $SRC/u-root/pkg/boot/netboot/ipxe
 #go mod init ipxe
-#printf "package ipxe\nimport _ \"github.com/AdamKorcz/go-118-fuzz-build/testing\"\n" > registerfuzzdep.go
+printf "package ipxe\nimport _ \"github.com/AdamKorcz/go-118-fuzz-build/testing\"\n" > registerfuzzdep.go
 
 sed 's/log\: ulogtest\.Logger/\/\/log\: ulogtest\.Logger/g' -i $SRC/u-root/pkg/boot/netboot/ipxe/fuzz_test.go
 sed 's/c\.log\.Printf/\/\/c\.log\.Printf/g' -i $SRC/u-root/pkg/boot/netboot/ipxe/ipxe.go

@@ -15,13 +15,6 @@
 #
 ################################################################################
 
-#cd $SRC
-#git clone https://github.com/AdamKorcz/go-118-fuzz-build --branch=v2
-#cd $SRC/go-118-fuzz-build
-#go build .
-#mv go-118-fuzz-build /root/go/bin/
-
-#cd $SRC/fasthttp
 rm lbclient_example_test.go
 rm client_example_test.go
 rm requestctx_setbodystreamwriter_example_test.go
