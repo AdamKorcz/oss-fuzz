@@ -15,6 +15,9 @@
 #
 ################################################################################
 
+# Adds a fuzzer to a json list stored in $OUT
+# so we can easily check later if a fuzzer
+# is a std lib fuzzer
 add_to_list_of_native_fuzzers() {
   local new_element="$1"
   local file="$OUT/native_go_fuzzers.json"
@@ -39,7 +42,10 @@ add_to_list_of_native_fuzzers() {
   jq --arg item "$new_element" '. += [$item]' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
 }
 
-# Save a key-value pair to a JSON file
+# Save a key-value pair to a JSON file. We use this to
+# store the fuzzer function name with the fuzzer
+# executable name; we need the function name in the
+# coverage build.
 save_function_name() {
   local key="$1"
   local value="$2"
