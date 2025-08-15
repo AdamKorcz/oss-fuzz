@@ -17,8 +17,6 @@
 
 # Install go on x86_64, don't do anything on ARM.
 
-echo hi
-
 case $(uname -m) in
     x86_64)
       # Download and install Go.
@@ -31,7 +29,6 @@ case $(uname -m) in
       cd $GOPATH/gocoverage && /root/.go/bin/go install ./...
       cd /root/.go/src/cmd/cover && /root/.go/bin/go build && mv cover $GOPATH/bin/gotoolcover
       pushd /tmp
-      echo hii
         git clone --depth=1 https://github.com/AdamKorcz/go-118-fuzz-build --branch=v2
         cd go-118-fuzz-build/cmd/convertLibFuzzerTestcaseToStdLibGo
         /root/.go/bin/go build .

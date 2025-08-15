@@ -36,8 +36,6 @@ if [ -f "$GOPATH/gosigfuzz/gosigfuzz.c" ]; then
     clang -c $GOPATH/gosigfuzz/gosigfuzz.c -o $GOPATH/gosigfuzz/gosigfuzz.o
 fi
 
-
-echo hiiiiiiii
 cd /tmp
 git clone https://github.com/AdamKorcz/go-118-fuzz-build
 cd go-118-fuzz-build

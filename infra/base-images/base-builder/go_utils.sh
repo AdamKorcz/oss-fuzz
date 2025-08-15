@@ -122,13 +122,7 @@ function build_native_go_fuzzer() {
 		  -json-out $OUT/fuzzer-parameters.json
 		cd $current_dir
 	else
-		# this is the only thing we really need
 		go-118-fuzz-build_v2 $tags -o $fuzzer.a -func $function $abs_file_dir
 		$CXX $CXXFLAGS $LIB_FUZZING_ENGINE $fuzzer.a -o $OUT/$fuzzer
-		# end of what we really only need
-		# For testing: Run the fuzzer 10 minutes and collect the corpus.
-		mkdir -p "$OUT/testing-seeds/${fuzzer}_seed_libFuzzer" || true
-		mkdir -p "$OUT/testing-seeds/${fuzzer}_corpus_libFuzzer" || true
-		$OUT/$fuzzer -max_total_time=60 "$OUT/testing-seeds/${fuzzer}_seed_libFuzzer" "$OUT/testing-seeds/${fuzzer}_corpus_libFuzzer"
 	fi
 }
