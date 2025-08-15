@@ -73,9 +73,9 @@ function build_native_go_fuzzer_legacy() {
 		cp "${fuzzer_filename}" "${OUT}/rawfuzzers/${fuzzer}"
 
 		fuzzed_repo=$(go list $tags -f {{.Module}} "$path")
-  		abspath_repo=`go list -m $tags -f {{.Dir}} $fuzzed_repo || go list $tags -f {{.Dir}} $fuzzed_repo`
-  		# give equivalence to absolute paths in another file, as go test -cover uses golangish pkg.Dir
-  		echo "s=$fuzzed_repo"="$abspath_repo"= > $OUT/$fuzzer.gocovpath
+  	abspath_repo=`go list -m $tags -f {{.Dir}} $fuzzed_repo || go list $tags -f {{.Dir}} $fuzzed_repo`
+  	# give equivalence to absolute paths in another file, as go test -cover uses golangish pkg.Dir
+  	echo "s=$fuzzed_repo"="$abspath_repo"= > $OUT/$fuzzer.gocovpath
 
 		cd $current_dir
 	else
