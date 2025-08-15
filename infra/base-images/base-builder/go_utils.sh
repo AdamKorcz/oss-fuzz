@@ -97,7 +97,6 @@ function build_native_go_fuzzer() {
 		# Save the current dir to return later
 		current_dir=$(pwd)
 		fuzzed_repo=$(go list $tags -f {{.Module}} "$abs_path")
-		#mkdir $OUT/rawfuzzers || true
 		cd $abs_file_dir
 		go test $tags \
 	    -c \
@@ -105,7 +104,6 @@ function build_native_go_fuzzer() {
 	    -coverpkg="$fuzzed_repo/..." \
 	    -covermode=atomic \
 	    "$package_path"
-		#go test $tags -c -o $OUT/$fuzzer -coverpkg=$fuzzed_repo/... -covermode=atomic $package_path
 		save_function_name "$fuzzer" "$function" "$function_names_file"
 
 		abspath_repo=`go list -m $tags -f {{.Dir}} $fuzzed_repo || go list $tags -f {{.Dir}} $fuzzed_repo`

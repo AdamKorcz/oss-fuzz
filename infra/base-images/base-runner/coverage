@@ -190,7 +190,7 @@ get_function_name() {
     return 1
   fi
 
-  # If file doesn't exist or is empty, return helpful message
+  # If file doesn't exist or is empty
   if [ ! -s "$file" ]; then
     echo "Error: File '$file' does not exist or is empty."
     return 1
@@ -223,11 +223,7 @@ function run_go_fuzz_target {
     function_name=$(get_function_name "$target" "$function_names_file")
 
     # Create the corpus dir testdata/fuzz/NAME
-    cd $OUT
-    mkdir -p "testdata/fuzz/${function_name}"
-    #This is just for testing:"
-    cp "$OUT"/testing-seeds/"${target}"_seed_libFuzzer/* "${FUZZ_CORPUS_DIR}/" || true
-    cp "$OUT"/testing-seeds/"${target}"_corpus_libFuzzer/* "${FUZZ_CORPUS_DIR}/" || true
+    mkdir -p "${OUT}/testdata/fuzz/${function_name}"
 
     # Now we copy the corpus generated at runtime into FUZZ_CORPUS_DIR.
     # In the process, we convert it from a raw byte slice to files of
@@ -244,17 +240,19 @@ function run_go_fuzz_target {
       -fuzzer-func "${target}" \
       -fuzzerBinaryName $target \
       -seeds-dir "${FUZZ_CORPUS_DIR}" \
-      -out-dir "testdata/fuzz/${function_name}"
+      -out-dir "${OUT}/testdata/fuzz/${function_name}"
 
-    timeout "$TIMEOUT" \
-      "$OUT/$target" \
-      -test.run="$function_name" \
-      -test.coverprofile "$DUMPS_DIR/$target.profdata" \
-      &> "$LOGS_DIR/$target.log"
-    if (( $? != 0 )); then
-      echo "Error occured while running std lib fuzzer $target:"
-      cat $LOGS_DIR/$target.log
-    fi
+    pusdh $OUT
+      timeout "$TIMEOUT" \
+        "$OUT/$target" \
+        -test.run="$function_name" \
+        -test.coverprofile "$DUMPS_DIR/$target.profdata" \
+        &> "$LOGS_DIR/$target.log"
+      if (( $? != 0 )); then
+        echo "Error occured while running std lib fuzzer $target:"
+        cat $LOGS_DIR/$target.log
+      fi
+    popd
     # cleanup after native go fuzzers
     rm -r "${OUT}/testdata/fuzz/${function_name}"
     # The std lib fuzzers are renamed to "*_fuzz_.go" during "infra/helper.py build_fuzzers".
