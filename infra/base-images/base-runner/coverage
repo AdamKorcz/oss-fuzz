@@ -168,7 +168,19 @@ is_std_lib_fuzzer() {
   fi
 }
 
-# Get a value from a JSON file by key
+# get_function_name reads a value from a simple json format:
+# 
+# {
+#  "fuzzerBinaryName1": "FuzzFunctionName1",
+#  "fuzzerBinaryName2": "FuzzFunctionName2"
+# }
+# 
+# In this case, we call `get_function_name fuzzerBinaryName1
+# $OUT/fuzzer_function_names.json` to get "FuzzFunctionName1".
+# We need this when setting up a temporary directory for
+# getting the coverage.
+# Go reads corpus files from `testdata/fuzz/FuzzFunctionName1`,
+# so we need the function name instead of the executable binary name.
 get_function_name() {
   local key="$1"
   local file="$2"
@@ -203,34 +215,42 @@ function run_go_fuzz_target {
   export FUZZ_CORPUS_DIR="$CORPUS_DIR/${target}/"
   export FUZZ_PROFILE_NAME="$DUMPS_DIR/$target.perf"
 
-  #cp $OUT/"${target}"_corpus_libFuzzer/* FUZZ_CORPUS_DIR="$CORPUS_DIR/${target}/"
-
-  ## Now we want to do something like:
   if [[ "$(is_std_lib_fuzzer "${target}")" == "true" ]]; then
-    echo "This is a std lib fuzzer"
-    # File path
+    # "NAME" om testdata/fuzz/NAME needs to be the function
+    # name of the fuzz test in the compiled binary. We have
+    # stored that name in $OUT/fuzzer_function_names.json.
     function_names_file="$OUT/fuzzer_function_names.json"
-    cd $OUT
     function_name=$(get_function_name "$target" "$function_names_file")
-    echo "function_name: $function_name"
+
+    # Create the corpus dir testdata/fuzz/NAME
+    cd $OUT
     mkdir -p "testdata/fuzz/${function_name}"
     #This is just for testing:"
     cp "$OUT"/testing-seeds/"${target}"_seed_libFuzzer/* "${FUZZ_CORPUS_DIR}/" || true
     cp "$OUT"/testing-seeds/"${target}"_corpus_libFuzzer/* "${FUZZ_CORPUS_DIR}/" || true
 
-    # Convert corpus
-    #echo "running convertLibFuzzerTestcaseToStdLibGo"
-    cat ../../build/out/fasthttp/fuzzer-parameters.json
+    # Now we copy the corpus generated at runtime into FUZZ_CORPUS_DIR.
+    # In the process, we convert it from a raw byte slice to files of
+    # the std lib Go corpus file format, eg:
+    # 
+    # go test fuzz v1
+    # int8(42)
+    # string("hello")
+    # 
+    # The convertLibFuzzerTestcaseToStdLibGo binary handles the entire
+    # process for that.
     convertLibFuzzerTestcaseToStdLibGo -convert-seeds \
       -params-json $OUT/fuzzer-parameters.json \
       -fuzzer-func "${target}" \
       -fuzzerBinaryName $target \
       -seeds-dir "${FUZZ_CORPUS_DIR}" \
       -out-dir "testdata/fuzz/${function_name}"
-    #convertLibFuzzerTestcaseToStdLibGo -in "${FUZZ_CORPUS_DIR}" -out "testdata/fuzz/${target}"
 
-    #find "testdata/fuzz/${function_name}" -type f -exec cat {} \;
-    timeout $TIMEOUT $OUT/$target -test.run=$function_name -test.coverprofile $DUMPS_DIR/$target.profdata &> $LOGS_DIR/$target.log
+    timeout "$TIMEOUT" \
+      "$OUT/$target" \
+      -test.run="$function_name" \
+      -test.coverprofile "$DUMPS_DIR/$target.profdata" \
+      &> "$LOGS_DIR/$target.log"
     if (( $? != 0 )); then
       echo "Error occured while running std lib fuzzer $target:"
       cat $LOGS_DIR/$target.log
@@ -244,8 +264,10 @@ function run_go_fuzz_target {
     # to the original file names.
     sed -i "s/_libFuzzer.go/_test.go/g" $DUMPS_DIR/$target.profdata
   else
-    echo "this is not a std lib fuzzer"
-    timeout $TIMEOUT $OUT/$target -test.coverprofile $DUMPS_DIR/$target.profdata &> $LOGS_DIR/$target.log
+    timeout "$TIMEOUT" \
+      "$OUT/$target" \
+      -test.coverprofile "$DUMPS_DIR/$target.profdata" \
+      &> "$LOGS_DIR/$target.log"
     if (( $? != 0 )); then
       echo "Error occured while running $target:"
       cat $LOGS_DIR/$target.log

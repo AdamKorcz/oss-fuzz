@@ -99,41 +99,31 @@ function build_native_go_fuzzer() {
 		fuzzed_repo=$(go list $tags -f {{.Module}} "$abs_path")
 		#mkdir $OUT/rawfuzzers || true
 		cd $abs_file_dir
-		go test $tags -c -o $OUT/$fuzzer -coverpkg=$fuzzed_repo/... -covermode=atomic $package_path
+		go test $tags \
+	    -c \
+	    -o "$OUT/$fuzzer" \
+	    -coverpkg="$fuzzed_repo/..." \
+	    -covermode=atomic \
+	    "$package_path"
+		#go test $tags -c -o $OUT/$fuzzer -coverpkg=$fuzzed_repo/... -covermode=atomic $package_path
 		save_function_name "$fuzzer" "$function" "$function_names_file"
-		#echo "testing running test binary. this should return 'PASS'"
-		#$OUT/$fuzzer -test.run=$fuzzer
-		#cp "${fuzzer_filename}" "${OUT}/rawfuzzers/${fuzzer}"
 
 		abspath_repo=`go list -m $tags -f {{.Dir}} $fuzzed_repo || go list $tags -f {{.Dir}} $fuzzed_repo`
 		# give equivalence to absolute paths in another file, as go test -cover uses golangish pkg.Dir
 		echo "s=$fuzzed_repo"="$abspath_repo"= > $OUT/$fuzzer.gocovpath
 		add_to_list_of_native_fuzzers "${fuzzer}"
+
+		# Store the function signature in $OUT/fuzzer-parameters.json
+		# so we can read it when running helper.py coverage. We need
+		# this to convert corpus to a readable format by the test.
 		convertLibFuzzerTestcaseToStdLibGo \
 		  -write-params \
 		  -file $fuzzer_filename \
 		  -fuzzer-func $function \
 		  -fuzzerBinaryName $fuzzer \
 		  -json-out $OUT/fuzzer-parameters.json
-		#ls $OUT -la
-		#cat $OUT/fuzzer-parameters.json
-		#getFuzzerArguments -file $fuzzer_filename -fuzzer-func $function -json-out $OUT/fuzzer-parameters.json
 		cd $current_dir
 	else
-		# For testing: Run the fuzzer with go test -fuzz to collect corpus
-		#fuzzed_repo=$(go list $tags -f {{.Module}} "$path")
-		#cd $abs_file_dir
-		#echo "go test . -fuzz=$function -fuzztime=100s"
-		#go test . -fuzz=$function -fuzztime=100s
-		#go_list=$(go list)
-		#gocache=$(go env -json | jq -r '.GOCACHE')
-		#mkdir -p $OUT/testing-seeds
-		#rm -r "$OUT/testing-seeds/${fuzzer}_seed_stdlib" || true
-		#ls "${gocache}/fuzz/${go_list}"
-		#ls "${gocache}/fuzz/${go_list}/${function}"
-		#cp -r "${gocache}/fuzz/${go_list}/${function}" "$OUT/testing-seeds/${fuzzer}_seed_stdlib"
-		#cd -
-
 		# this is the only thing we really need
 		go-118-fuzz-build_v2 $tags -o $fuzzer.a -func $function $abs_file_dir
 		$CXX $CXXFLAGS $LIB_FUZZING_ENGINE $fuzzer.a -o $OUT/$fuzzer

@@ -26,7 +26,7 @@ abs_file_dir=$(go list $tags -f {{.Dir}} $path)
 # TODO(adamkorcz): Get rid of "-r" flag here.
 export fuzzer_filename=$(grep -r -l --include='*.go' -s "$function" "${abs_file_dir}")
 
-# Import build_native_go_fuzzer_legacy
+# Import build_native_go_fuzzer
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/go_utils.sh"
 

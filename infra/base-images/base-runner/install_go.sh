@@ -17,6 +17,8 @@
 
 # Install go on x86_64, don't do anything on ARM.
 
+echo hi
+
 case $(uname -m) in
     x86_64)
       # Download and install Go.

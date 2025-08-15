@@ -1,4 +1,0 @@
-github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24 h1:bvDV9vkmnHYOMsOr4WLk+Vo07yKIzd94sVoIqshQ4bU=
-github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24/go.mod h1:8o94RPi1/7XTJvwPpRSzSUedZrtlirdB3r9Z20bi2f8=
-github.com/AdamKorcz/go-118-fuzz-build v0.0.0-20250808145501-227fec1af458 h1:p4QW8aVs6IHzTTfROfkviz4Vi8s06RtZzwLrvVisJ8k=
-github.com/AdamKorcz/go-118-fuzz-build v0.0.0-20250808145501-227fec1af458/go.mod h1:zAs9pdCExgIAx0E4ZkJkN6dXPdswogg05i+TFRdMask=
