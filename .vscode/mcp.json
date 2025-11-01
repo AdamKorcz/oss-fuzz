@@ -1,0 +1,15 @@
+{
+  "servers": {
+    "oss-fuzz-mcp": {
+      "type": "stdio",
+      "command": "python3",
+      "args": [
+        "infra/experimental/mcp/dev_bootstrap.py",
+        "--hot",
+        "--server-path",
+        "infra/experimental/mcp/oss_fuzz_server.py"
+      ],
+      "cwd": "${workspaceFolder}"
+    }
+  }
+}
