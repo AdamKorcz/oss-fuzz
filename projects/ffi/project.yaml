@@ -1,0 +1,10 @@
+homepage: "https://github.com/ffi/ffi"
+language: ruby
+main_repo: "https://github.com/ffi/ffi"
+sanitizers:
+  - address
+  - undefined
+fuzzing_engines:
+  - libfuzzer
+vendor_ccs:
+  - adam@adalogics.com
