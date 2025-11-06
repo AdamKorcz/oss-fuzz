@@ -1,19 +1,8 @@
-// Copyright 2025 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//
+// Copyright 2025 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
 
-package dsa
+package dsa_test
 
 import (
 	"bytes"
@@ -23,12 +12,9 @@ import (
 )
 
 func FuzzDsaVerify(f *testing.F) {
+	f.Add([]byte("0123456789abcdef0123456789abcdef"), []byte("0123456789abcdef"), []byte("hash data"), "12345", "67890", uint8(0))
+	
 	f.Fuzz(func(t *testing.T, data1, data2, data3 []byte, s1, s2 string, s uint8) {
-		bi1, ok := new(big.Int).SetString(s1, 16)
-		bi2, ok2 := new(big.Int).SetString(s2, 16)
-		if !ok || !ok2 {
-			return
-		}
 		var priv dsa.PrivateKey
 		params := &priv.Parameters
 		sizes := []dsa.ParameterSizes{
@@ -37,6 +23,16 @@ func FuzzDsaVerify(f *testing.F) {
 			dsa.L2048N256,
 			dsa.L3072N256,
 		}
+		
+		bi1, ok := new(big.Int).SetString(s1, 10)
+		if !ok {
+			return
+		}
+		bi2, ok := new(big.Int).SetString(s2, 10)
+		if !ok {
+			return
+		}
+		
 		err := dsa.GenerateParameters(params, bytes.NewReader(data1), sizes[int(s)%len(sizes)])
 		if err != nil {
 			return
@@ -50,6 +46,8 @@ func FuzzDsaVerify(f *testing.F) {
 }
 
 func FuzzDsaSign(f *testing.F) {
+	f.Add([]byte("0123456789abcdef0123456789abcdef"), []byte("0123456789abcdef"), []byte("random"), []byte("hash"), uint8(0))
+	
 	f.Fuzz(func(t *testing.T, data1, data2, data3, data4 []byte, s uint8) {
 		var priv dsa.PrivateKey
 		params := &priv.Parameters
@@ -59,6 +57,7 @@ func FuzzDsaSign(f *testing.F) {
 			dsa.L2048N256,
 			dsa.L3072N256,
 		}
+		
 		err := dsa.GenerateParameters(params, bytes.NewReader(data1), sizes[int(s)%len(sizes)])
 		if err != nil {
 			return

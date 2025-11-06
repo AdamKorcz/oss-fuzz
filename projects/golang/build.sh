@@ -12,220 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Temporarily disable coverage build in OSS-Fuzz's CI
-if [ -n "${OSS_FUZZ_CI-}" ]
-then
-	if [ "${SANITIZER}" = 'coverage' ]
-	then
-		exit 0
-	fi
-
-fi
-
 export GOTOOLCHAIN="local"
 
 export FUZZ_ROOT="github.com/dvyukov/go-fuzz-corpus"
 
-cd $SRC/go-118-fuzz-build
-go build .
-mv go-118-fuzz-build /root/go/bin/
-
-cd $SRC/text
-cp $SRC/unicode_fuzzer.go ./encoding/unicode/
-find . -name "*_test.go" ! -name 'fuzz_test.go' -type f -exec rm -f {} +
-compile_go_fuzzer golang.org/x/text/encoding/unicode FuzzUnicodeTransform fuzz_unicode_transform
-
-function setup_golang_fuzzers() {
-	cd $SRC/golang
-	# These two directories cause build issues and are not used by oss-fuzz.
-	# They can be removed:
-	rm -r sqlparser
-	rm -r parser
-
-	mkdir $SRC/golang/math && cp $SRC/math_big_fuzzer.go $SRC/golang/math/
-
-	mkdir $SRC/golang/text && cp $SRC/text_fuzzer.go $SRC/golang/text/
-	cp $SRC/language_fuzzer.go $SRC/golang/text/
-
-	mkdir -p $SRC/golang/crypto/x509
-	cp $SRC/x509_fuzzer.go $SRC/golang/crypto/x509/
-
-	mkdir -p $SRC/golang/crypto/ecdsa
-	cp $SRC/ecdsa_fuzzer.go ./crypto/ecdsa/
-
-	mkdir -p $SRC/golang/crypto/dsa
-	cp $SRC/dsa_fuzzer.go ./crypto/dsa/
-
-	mkdir -p $SRC/golang/crypto/aes
-	cp $SRC/aes_fuzzer.go ./crypto/aes/
-
-	mkdir $SRC/golang/fp
-	cp $SRC/filepath_fuzzer.go $SRC/golang/fp/
-
-	cp $SRC/strings_fuzzer.go $SRC/golang/strings/
-
-	cp $SRC/multipart_fuzzer.go $SRC/golang/multipart/main.go
-
-	mkdir $SRC/golang/encoding && cp $SRC/encoding_fuzzer.go $SRC/golang/encoding/
-
-	go mod init "github.com/dvyukov/go-fuzz-corpus"
-	mkdir fuzzingdep
-	printf "package fuzzingdep\nimport _ \"github.com/AdamKorcz/go-118-fuzz-build/testing\"\n" > fuzzingdep/register.go
-	go mod edit -replace github.com/AdamKorcz/go-118-fuzz-build="$SRC"/go-118-fuzz-build
-	go mod tidy
-}
-
-function compile_fuzzers() {
-	# version is used as suffix for the binaries
-	version=$1
-	compile_go_fuzzer $FUZZ_ROOT/encoding FuzzEncoding fuzz_encoding$version
-	compile_go_fuzzer $FUZZ_ROOT/strings FuzzStringsSplit fuzz_strings_split$version
-	compile_go_fuzzer $FUZZ_ROOT/fp FuzzFpGlob glob_fuzzer$version
-	if [ "${version}" != '_latest_master' ]
-        then
-		compile_go_fuzzer $FUZZ_ROOT/crypto/ecdsa FuzzEcdsaSign FuzzEcdsaSign$version
-		compile_native_go_fuzzer $FUZZ_ROOT/crypto/ecdsa FuzzEcdsaVerify FuzzEcdsaVerify$version
-		compile_native_go_fuzzer $FUZZ_ROOT/crypto/dsa FuzzDsaSign FuzzDsaSign$version
-		compile_native_go_fuzzer $FUZZ_ROOT/crypto/dsa FuzzDsaVerify FuzzDsaVerify$version
-        fi
-	compile_go_fuzzer $FUZZ_ROOT/crypto/x509 FuzzParseCert fuzz_parse_cert$version
-	compile_go_fuzzer $FUZZ_ROOT/crypto/x509 FuzzPemDecrypt fuzz_pem_decrypt$version
-	compile_go_fuzzer $FUZZ_ROOT/crypto/aes FuzzAesCipherDecrypt fuzz_aes_cipher_decrypt$version
-	compile_go_fuzzer $FUZZ_ROOT/crypto/aes FuzzAesCipherEncrypt fuzz_aes_cipher_encrypt$version
-	compile_go_fuzzer $FUZZ_ROOT/text FuzzAcceptLanguage accept_language_fuzzer$version
-	compile_go_fuzzer $FUZZ_ROOT/text FuzzMultipleParsers fuzz_multiple_parsers$version
-	compile_go_fuzzer $FUZZ_ROOT/text FuzzCurrency currency_fuzzer$version
-	compile_go_fuzzer $FUZZ_ROOT/math FuzzFloatSetString fuzz_float_set_string$version
-	compile_go_fuzzer $FUZZ_ROOT/math FuzzBigGobdecode fuzz_big_gobdecode$version
-	compile_go_fuzzer $FUZZ_ROOT/math FuzzBigIntCmp1 big_cmp_fuzzer1$version
-	compile_go_fuzzer $FUZZ_ROOT/math FuzzBigIntCmp2 big_cmp_fuzzer2$version
-	compile_go_fuzzer $FUZZ_ROOT/math FuzzRatSetString big_rat_fuzzer$version
-	compile_go_fuzzer $FUZZ_ROOT/math FuzzFloat64SpecialCases fuzz_float64_special_cases$version
-	compile_go_fuzzer $FUZZ_ROOT/asn1 Fuzz asn_fuzzer$version
-	compile_go_fuzzer $FUZZ_ROOT/csv Fuzz csv_fuzzer$version
-	compile_go_fuzzer $FUZZ_ROOT/elliptic Fuzz elliptic_fuzzer$version
-	compile_go_fuzzer $FUZZ_ROOT/flate Fuzz flate_fuzzer$version
-	compile_go_fuzzer $FUZZ_ROOT/fmt Fuzz fmt_fuzzer$version
-	compile_go_fuzzer $FUZZ_ROOT/gzip Fuzz gzip_fuzzer$version
-	compile_go_fuzzer $FUZZ_ROOT/httpreq Fuzz httpreq_fuzzer$version
-	compile_go_fuzzer $FUZZ_ROOT/jpeg Fuzz jpeg_fuzzer$version
-	compile_go_fuzzer $FUZZ_ROOT/json Fuzz json_fuzzer$version
-	compile_go_fuzzer $FUZZ_ROOT/lzw Fuzz lzw_fuzzer$version
-	compile_go_fuzzer $FUZZ_ROOT/mime Fuzz mime_fuzzer$version
-	compile_go_fuzzer $FUZZ_ROOT/multipart Fuzz multipart_fuzzer$version
-	compile_go_fuzzer $FUZZ_ROOT/png Fuzz png_fuzzer$version
-	compile_go_fuzzer $FUZZ_ROOT/tar Fuzz tar_fuzzer$version
-	compile_go_fuzzer $FUZZ_ROOT/time Fuzz time_fuzzer$version
-	compile_go_fuzzer $FUZZ_ROOT/xml Fuzz xml_fuzzer$version
-	compile_go_fuzzer $FUZZ_ROOT/zip Fuzz zip_fuzzer$version
-	compile_go_fuzzer $FUZZ_ROOT/zlib Fuzz zlib_fuzzer$version
-
-	zip $OUT/fuzz_pem_decrypt${version}_seed_corpus.zip $SRC/go/src/crypto/x509/testdata/*
-	zip $OUT/fuzz_parse_cert${version}_seed_corpus.zip $SRC/go/src/crypto/x509/testdata/*
-}
-
-
-# Build fuzzers with Go 1.18
-setup_golang_fuzzers
-compile_fuzzers ""
-
-cd $SRC/go/src/regexp
-cp $SRC/regexp_fuzzer.go ./
-go mod init regexpPackage
-go mod tidy
-find . -name "*_test.go" ! -name 'fuzz_test.go' -type f -exec rm -f {} +
-compile_go_fuzzer regexpPackage FuzzCompile fuzz_regexp_compile
-compile_go_fuzzer regexpPackage FuzzCompilePOSIX fuzz_compile_posix
-compile_go_fuzzer regexpPackage FuzzReplaceAll fuzz_replace_all
-compile_go_fuzzer regexpPackage FuzzFindMatchApis fuzz_find_match_apis
-
-#cd $SRC/go/src/archive/tar
-#go mod init tarPackage
-#go mod tidy
-#find . -name "*_test.go" ! -name 'fuzz_test.go' -type f -exec rm -f {} +
-#go get github.com/AdamKorcz/go-118-fuzz-build/testingtypes
-#go get github.com/AdamKorcz/go-118-fuzz-build/utils
-#compile_native_go_fuzzer tarPackage FuzzReader fuzz_std_lib_tar_reader
-#zip $OUT/fuzz_std_lib_tar_reader_seed_corpus.zip $SRC/go/src/archive/tar/testdata/*.tar
-
-cp $SRC/h2c_fuzzer.go $SRC/net/http2/h2c/
-cd $SRC/net/http2/h2c
-go mod tidy
-compile_go_fuzzer . FuzzH2c fuzz_x_h2c
-mv $SRC/fuzz_x_h2c.options $OUT/
-
-cp $SRC/openpgp_fuzzer.go $SRC/crypto/openpgp/packet
-cd $SRC/crypto/openpgp/packet
-go mod tidy
-compile_go_fuzzer . FuzzOpenpgpRead fuzz_openpgp_read
-
-cd $SRC/image/webp
-cp $SRC/webp_fuzzer.go ./
-compile_go_fuzzer . FuzzWebpDecode fuzz_webp_decode
-zip $OUT/fuzz_webp_decode_seed_corpus.zip $SRC/image/testdata/*.webp
-
-cd $SRC/image/tiff
-cp $SRC/tiff_fuzzer.go ./
-compile_go_fuzzer . FuzzTiffDecode fuzz_tiff_decode
-cp $SRC/fuzz_tiff_decode.options $OUT/
-zip $OUT/fuzz_tiff_decode_seed_corpus.zip $SRC/image/testdata/*.tiff
-
-cd $SRC/go/src/archive/tar
-cp $SRC/fuzz_tar_reader.go ./
-rm ./*_test.go
-
-#compile_go_fuzzer tarPackage FuzzTarReader fuzz_tar_reader
-#mv $SRC/fuzz_tar_reader.options $OUT/
-#zip $OUT/fuzz_tar_reader_seed_corpus.zip $SRC/go/src/archive/tar/testdata/*.tar
-
-#cd $SRC/go/src/archive/zip
-#go mod init zipPackage
-#go mod tidy
-#find . -name "*_test.go" ! -name 'fuzz_test.go' -type f -exec rm -f {} +
-#go get github.com/AdamKorcz/go-118-fuzz-build/testingtypes
-#go get github.com/AdamKorcz/go-118-fuzz-build/utils
-#compile_native_go_fuzzer zipPackage FuzzReader fuzz_std_lib_zip_reader
-#zip $OUT/fuzz_std_lib_zip_reader_seed_corpus.zip $SRC/go/src/archive/zip/testdata/*.zip
-
-cd $SRC/go/src/internal/saferio
-go mod init saferioPackage
-go mod tidy
-
-cd $SRC/go/src/internal/zstd
-go mod init zstdPackage
-go mod tidy
-
-cd $SRC/go/src/image/png
-go mod init pngPackage
-go get github.com/AdamKorcz/go-118-fuzz-build/testing
-go mod edit -replace github.com/AdamKorcz/go-118-fuzz-build="$SRC"/go-118-fuzz-build
-compile_native_go_fuzzer pngPackage FuzzDecode fuzz_png_decode
-zip $OUT/fuzz_png_decode_seed_corpus.zip ./testdata/*.png
-
-cd $SRC/go/src/compress/gzip
-go mod init gzipPackage
-go mod tidy
-find . -name "*_test.go" ! -name 'fuzz_test.go' -type f -exec rm -f {} +
-go get github.com/AdamKorcz/go-118-fuzz-build/testing
-go mod edit -replace github.com/AdamKorcz/go-118-fuzz-build="$SRC"/go-118-fuzz-build
-compile_native_go_fuzzer gzipPackage FuzzReader fuzz_std_lib_gzip_reader
-zip $OUT/fuzz_std_lib_gzip_reader_seed_corpus.zip $SRC/go/src/compress/gzip/testdata/*
-
-# golangs build from source currently breaks.
-
-cd $SRC/go/src/html
-go mod init htmlPackage
-go mod tidy
-go get github.com/AdamKorcz/go-118-fuzz-build/testing
-go mod edit -replace github.com/AdamKorcz/go-118-fuzz-build="$SRC"/go-118-fuzz-build
-compile_native_go_fuzzer htmlPackage FuzzEscapeUnescape fuzz_html_escape_unescape
-
-# Install latest Go from master branch and build fuzzers again
-cd $SRC
-rm -r go
-rm -r golang
-git clone --depth 1 https://github.com/golang/go
-git clone --depth 1 https://github.com/dvyukov/go-fuzz-corpus $SRC/golang
 cd $SRC/go/src
 # delete failing test
 rm ./cmd/cgo/internal/testsanitizers/msan_test.go
@@ -234,14 +24,188 @@ rm ./cmd/cgo/internal/testsanitizers/msan_test.go
 rm ./cmd/go/internal/modfetch/codehost/git_test.go
 rm ./cmd/go/internal/vcweb/vcstest/vcstest_test.go
 GOMEMLIMIT=2048MiB ./all.bash
+
 ls /src/go/bin
 export GOROOT="/src/go"
 export PATH=/src/go/bin:$PATH
 
-# build fuzzers
-setup_golang_fuzzers
-compile_fuzzers "_latest_master"
+cd $SRC
+mv $SRC/go/src ./std
+cd std
+go mod tidy
 
-# options files
-cp $SRC/glob_fuzzer.options $OUT/
-cp $SRC/glob_fuzzer.options $OUT/glob_fuzzer_latest_master.options
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+NEW_FUZZERS_DIR="$SRC/harnesses"
+SRC_DIR="$SCRIPT_DIR/std"
+
+# Function to copy fuzzer and compile
+deploy_fuzzer() {
+    local fuzzer_file=$1
+    local target_package=$2
+    local fuzzer_names=$3  # Space-separated list of fuzzer function names
+    
+    echo ""
+    echo "-------------------------------------------------------------------"
+    echo "Processing: $target_package"
+    echo "-------------------------------------------------------------------"
+    
+    # Create target directory if it doesn't exist
+    target_dir="$SRC_DIR/$target_package"
+    if [ ! -d "$target_dir" ]; then
+        echo "ERROR: Target directory does not exist: $target_dir"
+        return 1
+    fi
+    
+    # Copy the fuzzer file from new-fuzzers root
+    echo "Copying $fuzzer_file to $target_dir/fuzz_test.go"
+    cp "$NEW_FUZZERS_DIR/$fuzzer_file" "$target_dir/fuzz_test.go"
+    
+    # Compile each fuzzer in the file
+    for fuzzer_name in $fuzzer_names; do
+        echo "Compiling fuzzer: $fuzzer_name"
+        
+        # Generate output name (convert FuzzName to fuzz_name)
+        output_name=$(echo "$fuzzer_name" | sed 's/Fuzz//' | sed 's/\([A-Z]\)/_\L\1/g' | sed 's/^_//' | tr '[:upper:]' '[:lower:]')
+        output_name="${target_package//\//_}_${output_name}"
+        
+        echo "  -> Output: $output_name"
+        
+        compile_native_go_fuzzer_v2 "std/$target_package" "$fuzzer_name" "$output_name" || {
+    done
+    
+    echo "✓ Completed: $target_package"
+}
+
+# Deploy crypto/aes fuzzers
+deploy_fuzzer \
+    "crypto_aes_fuzz_test.go" \
+    "crypto/aes" \
+    "FuzzAesCtrStream FuzzAesOfbStream FuzzAesCfbEncrypter FuzzAesCfbDecrypter"
+
+# Deploy crypto/dsa fuzzers
+deploy_fuzzer \
+    "crypto_dsa_fuzz_test.go" \
+    "crypto/dsa" \
+    "FuzzDsaVerify FuzzDsaSign"
+
+# Deploy crypto/ecdsa fuzzers
+deploy_fuzzer \
+    "crypto_ecdsa_fuzz_test.go" \
+    "crypto/ecdsa" \
+    "FuzzEcdsaSign FuzzEcdsaVerify"
+
+# Deploy debug/elf fuzzers
+deploy_fuzzer \
+    "debug_elf_fuzz_test.go" \
+    "debug/elf" \
+    "FuzzElfOpen"
+
+# Deploy encoding fuzzers (split across multiple packages)
+deploy_fuzzer \
+    "encoding_fuzz_test.go" \
+    "encoding/base32" \
+    "FuzzBase32Decode"
+
+deploy_fuzzer \
+    "encoding_fuzz_test.go" \
+    "encoding/base64" \
+    "FuzzBase64Decode"
+
+deploy_fuzzer \
+    "encoding_fuzz_test.go" \
+    "encoding/gob" \
+    "FuzzGobDecode"
+
+deploy_fuzzer \
+    "encoding_fuzz_test.go" \
+    "encoding/json" \
+    "FuzzJSONDecode"
+
+deploy_fuzzer \
+    "encoding_fuzz_test.go" \
+    "encoding/xml" \
+    "FuzzXMLDecode"
+
+# Deploy path/filepath fuzzers
+deploy_fuzzer \
+    "path_filepath_fuzz_test.go" \
+    "path/filepath" \
+    "FuzzGlob FuzzMatch"
+
+# Deploy math/big fuzzers
+deploy_fuzzer \
+    "math_big_fuzz_test.go" \
+    "math/big" \
+    "FuzzBigIntCmp FuzzBigFloatSetFloat64 FuzzBigRatSetString FuzzBigIntSetString"
+
+# Deploy mime/multipart fuzzers
+deploy_fuzzer \
+    "mime_multipart_fuzz_test.go" \
+    "mime/multipart" \
+    "FuzzReader FuzzReadForm"
+
+# Deploy regexp fuzzers
+deploy_fuzzer \
+    "regexp_fuzz_test.go" \
+    "regexp" \
+    "FuzzCompile FuzzCompilePOSIX FuzzMatch FuzzReplaceAll"
+
+# Deploy strings fuzzers
+deploy_fuzzer \
+    "strings_fuzz_test.go" \
+    "strings" \
+    "FuzzSplit FuzzFields FuzzContains"
+
+# Deploy image/tiff fuzzers
+deploy_fuzzer \
+    "image_tiff_fuzz_test.go" \
+    "image/tiff" \
+    "FuzzDecode"
+
+# Deploy crypto/x509 fuzzers
+deploy_fuzzer \
+    "crypto_x509_fuzz_test.go" \
+    "crypto/x509" \
+    "FuzzParseCertificate FuzzParseCertificates FuzzParsePKIXPublicKey FuzzParseCRL FuzzParsePEMCertificate"
+
+
+if ! command -v compile_native_go_fuzzer_v2 &> /dev/null; then
+    
+    existing_count=0
+    compiled_count=0
+    failed_count=0
+    
+    # Find all *_test.go files and search for Fuzz functions
+    while IFS= read -r test_file; do
+        # Get the package directory relative to src/
+        pkg_dir=$(dirname "$test_file")
+        pkg_path="${pkg_dir#$SRC_DIR/}"
+        
+        # Find all Fuzz functions in this file
+        while IFS= read -r fuzz_func; do
+            ((existing_count++))
+            
+            # Generate output name
+            output_name=$(echo "$fuzz_func" | sed 's/Fuzz//' | sed 's/\([A-Z]\)/_\L\1/g' | sed 's/^_//' | tr '[:upper:]' '[:lower:]')
+            output_name="${pkg_path//\//_}_${output_name}"
+            
+            echo ""
+            echo "[$existing_count] Compiling: $pkg_path::$fuzz_func"
+            echo "  -> Output: $output_name"
+            
+            if compile_native_go_fuzzer_v2 "std/$pkg_path" "$fuzz_func" "$output_name" 2>&1 | grep -q "Success\|built"; then
+                ((compiled_count++))
+                echo "  ✓ Success"
+            else
+                ((failed_count++))
+                echo "  ✗ Failed (may already exist or have compilation issues)"
+            fi
+        done < <(grep -o "^func Fuzz[A-Za-z0-9_]*" "$test_file" | sed 's/^func //')
+    done < <(find "$SRC_DIR" -name "*_test.go" -type f 2>/dev/null | while read f; do
+        if grep -q "^func Fuzz" "$f" 2>/dev/null; then
+            echo "$f"
+        fi
+    done)
+    
+fi
+
