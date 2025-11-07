@@ -17,6 +17,7 @@
 FROM gcr.io/oss-fuzz-base/base-builder-go
 #RUN git clone --depth 1 https://github.com/golang/go
 ADD go $SRC/go
+ADD go-fuzz-corpus $SRC/go-fuzz-corpus
 
 RUN wget https://go.dev/dl/go1.25.0.linux-amd64.tar.gz \
     && mkdir temp-go \
