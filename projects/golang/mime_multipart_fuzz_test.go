@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package multipart_test
+package multipart
 
 import (
 	"bytes"
 	"io"
-	"mime/multipart"
 	"testing"
 )
 
@@ -24,7 +23,7 @@ func FuzzReader(f *testing.F) {
 			return
 		}
 		
-		r := multipart.NewReader(bytes.NewReader(data), boundary)
+		r := NewReader(bytes.NewReader(data), boundary)
 		
 		// Try to read all parts
 		for {
@@ -56,7 +55,7 @@ func FuzzReadForm(f *testing.F) {
 			return
 		}
 		
-		r := multipart.NewReader(bytes.NewReader(data), boundary)
+		r := NewReader(bytes.NewReader(data), boundary)
 		form, err := r.ReadForm(1 << 20) // 1MB max
 		if err != nil {
 			return

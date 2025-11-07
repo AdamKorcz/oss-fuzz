@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package aes_test
+package aes
 
 import (
-	"crypto/aes"
 	"crypto/cipher"
 	"testing"
 )
@@ -17,11 +16,11 @@ func FuzzAesCtrStream(f *testing.F) {
 		if len(key) != 16 && len(key) != 24 && len(key) != 32 {
 			return
 		}
-		if len(iv) != aes.BlockSize {
+		if len(iv) != BlockSize {
 			return
 		}
 		
-		block, err := aes.NewCipher(key)
+		block, err := NewCipher(key)
 		if err != nil {
 			return
 		}
@@ -48,11 +47,11 @@ func FuzzAesOfbStream(f *testing.F) {
 		if len(key) != 16 && len(key) != 24 && len(key) != 32 {
 			return
 		}
-		if len(iv) != aes.BlockSize {
+		if len(iv) != BlockSize {
 			return
 		}
 		
-		block, err := aes.NewCipher(key)
+		block, err := NewCipher(key)
 		if err != nil {
 			return
 		}
@@ -79,11 +78,11 @@ func FuzzAesCfbEncrypter(f *testing.F) {
 		if len(key) != 16 && len(key) != 24 && len(key) != 32 {
 			return
 		}
-		if len(iv) != aes.BlockSize {
+		if len(iv) != BlockSize {
 			return
 		}
 		
-		block, err := aes.NewCipher(key)
+		block, err := NewCipher(key)
 		if err != nil {
 			return
 		}
@@ -110,11 +109,11 @@ func FuzzAesCfbDecrypter(f *testing.F) {
 		if len(key) != 16 && len(key) != 24 && len(key) != 32 {
 			return
 		}
-		if len(iv) != aes.BlockSize {
+		if len(iv) != BlockSize {
 			return
 		}
 		
-		block, err := aes.NewCipher(key)
+		block, err := NewCipher(key)
 		if err != nil {
 			return
 		}

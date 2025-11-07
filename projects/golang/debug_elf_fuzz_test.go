@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package elf_test
+package elf
 
 import (
-	"debug/elf"
 	"os"
 	"testing"
 )
@@ -27,14 +26,14 @@ func FuzzElfOpen(f *testing.F) {
 		}
 		tmpfile.Close()
 		
-		elfFile, err := elf.Open(tmpfile.Name())
+		elfFile, err := Open(tmpfile.Name())
 		if err != nil {
 			return
 		}
 		defer elfFile.Close()
 		
 		// Try to read some sections
-		elfFile.Sections()
-		elfFile.Symbols()
+		_ = elfFile.Sections
+		_, _ = elfFile.Symbols()
 	})
 }

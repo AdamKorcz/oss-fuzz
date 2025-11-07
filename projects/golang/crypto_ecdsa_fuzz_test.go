@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ecdsa_test
+package ecdsa
 
 import (
 	"bytes"
-	"crypto/ecdsa"
 	"crypto/elliptic"
 	"math/big"
 	"testing"
@@ -28,18 +27,18 @@ func FuzzEcdsaSign(f *testing.F) {
 		}
 		
 		c := curves[int(curveIdx)%len(curves)]
-		priv, err := ecdsa.GenerateKey(c, bytes.NewReader(data))
+		priv, err := GenerateKey(c, bytes.NewReader(data))
 		if err != nil {
 			return
 		}
 		
-		r, s, err := ecdsa.Sign(bytes.NewReader(data[len(data)/2:]), priv, hash)
+		r, s, err := Sign(bytes.NewReader(data[len(data)/2:]), priv, hash)
 		if err != nil {
 			return
 		}
 		
 		// Verify the signature
-		if !ecdsa.Verify(&priv.PublicKey, hash, r, s) {
+		if !Verify(&priv.PublicKey, hash, r, s) {
 			t.Errorf("signature verification failed")
 		}
 	})
@@ -61,7 +60,7 @@ func FuzzEcdsaVerify(f *testing.F) {
 		}
 		
 		c := curves[int(curveIdx)%len(curves)]
-		priv, err := ecdsa.GenerateKey(c, bytes.NewReader(data))
+		priv, err := GenerateKey(c, bytes.NewReader(data))
 		if err != nil {
 			return
 		}
@@ -75,7 +74,7 @@ func FuzzEcdsaVerify(f *testing.F) {
 			return
 		}
 		
-		ecdsa.Verify(&priv.PublicKey, hash, r, s)
+		Verify(&priv.PublicKey, hash, r, s)
 	})
 }
 

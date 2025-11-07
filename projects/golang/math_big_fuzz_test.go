@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package big_test
+package big
 
 import (
-	"math/big"
 	"testing"
 )
 
@@ -14,11 +13,11 @@ func FuzzBigIntCmp(f *testing.F) {
 	f.Add("-999", "1000")
 	
 	f.Fuzz(func(t *testing.T, s1, s2 string) {
-		bi1, ok := new(big.Int).SetString(s1, 10)
+		bi1, ok := new(Int).SetString(s1, 10)
 		if !ok {
 			return
 		}
-		bi2, ok := new(big.Int).SetString(s2, 10)
+		bi2, ok := new(Int).SetString(s2, 10)
 		if !ok {
 			return
 		}
@@ -27,13 +26,13 @@ func FuzzBigIntCmp(f *testing.F) {
 		bi1.Cmp(bi2)
 		
 		// Arithmetic operations
-		new(big.Int).Add(bi1, bi2)
-		new(big.Int).Sub(bi1, bi2)
-		new(big.Int).Mul(bi1, bi2)
+		new(Int).Add(bi1, bi2)
+		new(Int).Sub(bi1, bi2)
+		new(Int).Mul(bi1, bi2)
 		
 		if bi2.Sign() != 0 {
-			new(big.Int).Div(bi1, bi2)
-			new(big.Int).Mod(bi1, bi2)
+			new(Int).Div(bi1, bi2)
+			new(Int).Mod(bi1, bi2)
 		}
 	})
 }
@@ -43,7 +42,7 @@ func FuzzBigFloatSetFloat64(f *testing.F) {
 	f.Add(-999.999)
 	
 	f.Fuzz(func(t *testing.T, value float64) {
-		bf := new(big.Float).SetFloat64(value)
+		bf := new(Float).SetFloat64(value)
 		if bf == nil {
 			return
 		}
@@ -60,7 +59,7 @@ func FuzzBigRatSetString(f *testing.F) {
 	f.Add("-99/100")
 	
 	f.Fuzz(func(t *testing.T, input string) {
-		r := new(big.Rat)
+		r := new(Rat)
 		_, ok := r.SetString(input)
 		if !ok {
 			return
@@ -85,7 +84,7 @@ func FuzzBigIntSetString(f *testing.F) {
 			return
 		}
 		
-		bi := new(big.Int)
+		bi := new(Int)
 		_, ok := bi.SetString(s, base)
 		if !ok {
 			return
