@@ -15,6 +15,7 @@
 #
 ################################################################################
 
+# Build jackson-core and jackson-databind dependencies
 cd $SRC/jackson-core
 $MVN install -Dmaven.test.skip=true -Djavac.src.version=17 -Djavac.target.version=17
 
