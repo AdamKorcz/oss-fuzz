@@ -1,0 +1,62 @@
+#!/bin/bash -eu
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+################################################################################
+#
+# Compiles a Go fuzz target using Go's native libFuzzer support.
+# This uses the -libfuzzer flag added to go test in the custom Go fork.
+#
+# Usage: compile_native_go_fuzzer_v3 <package_path> <fuzz_function> <output_name>
+#
+# Example:
+#   compile_native_go_fuzzer_v3 ./pkg/parser FuzzParse fuzz_parse
+#
+################################################################################
+
+if [ $# -lt 3 ]; then
+  echo "Usage: $0 <package_path> <fuzz_function> <output_name>"
+  echo "Example: $0 ./pkg/parser FuzzParse fuzz_parse"
+  exit 1
+fi
+
+path=$1
+function=$2
+fuzzer=$3
+tags="-tags gofuzz"
+
+# Get absolute path of the package.
+abs_file_dir=$(go list $tags -f {{.Dir}} $path)
+
+# Find the file containing the fuzz function.
+# Use word boundary to match exact function name (not prefixes like FuzzFoo matching FuzzFooBar)
+export fuzzer_filename=$(grep -r -l --include='*.go' -s "func ${function}(" "${abs_file_dir}" | head -1)
+
+if [ -z "$fuzzer_filename" ]; then
+  echo "Error: Could not find function $function in package $path"
+  exit 1
+fi
+
+# Verify the function has the correct signature (func FuzzXxx(f *testing.F))
+# Use exact match with opening parenthesis to avoid matching similar-named functions
+if [ $(grep "func ${function}(" $fuzzer_filename | grep "testing.F" | wc -l) -ne 1 ]; then
+  echo "Error: Could not find the function: func ${function}(f *testing.F)"
+  exit 1
+fi
+
+# Import build function from go_utils.sh
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/go_utils.sh"
+
+build_native_go_fuzzer_v3 "$fuzzer" "$function" "$abs_file_dir" "$path"

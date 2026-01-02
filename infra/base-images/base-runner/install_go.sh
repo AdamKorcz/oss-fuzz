@@ -35,6 +35,8 @@ case $(uname -m) in
       printf $(find . -name gocoverage)
       cd $GOPATH/gocoverage && /root/.go/bin/go install ./...
       cd /root/.go/src/cmd/cover && /root/.go/bin/go build && mv cover $GOPATH/bin/gotoolcover
+      # Keep go-118-fuzz-build for v2 backward compatibility
+      # (v3 fuzzers use Go's native -test.fuzzlibfuzzercorpus flag and don't need this)
       pushd /tmp
         git clone --depth=1 https://github.com/AdamKorcz/go-118-fuzz-build --branch=v2
         cd go-118-fuzz-build/cmd/convertLibFuzzerTestcaseToStdLibGo

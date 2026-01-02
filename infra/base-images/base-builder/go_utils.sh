@@ -131,3 +131,89 @@ function build_native_go_fuzzer() {
 		$CXX $CXXFLAGS $LIB_FUZZING_ENGINE $fuzzer.a -o $OUT/$fuzzer
 	fi
 }
+
+# build_native_go_fuzzer_v3 uses Go's native libFuzzer support (go test -libfuzzer flag).
+# This is the recommended approach for building Go fuzz targets with libFuzzer.
+# For coverage builds, it produces a standard Go test binary (compatible with existing coverage runner).
+# For fuzzing builds, it uses the native -libfuzzer flag for optimal performance.
+function build_native_go_fuzzer_v3() {
+	fuzzer=$1
+	function=$2
+	abs_path=$3
+	package_path=$4
+	tags="-tags gofuzz"
+
+	# Save the current dir to return later
+	current_dir=$(pwd)
+	cd "$abs_path"
+
+	if [[ $SANITIZER == *coverage* ]]; then
+		# For coverage builds, produce a standard Go test binary (not libFuzzer)
+		# This allows using Go's native coverage tooling with the existing coverage runner
+		function_names_file="$OUT/fuzzer_function_names.json"
+
+		fuzzed_repo=$(go list $tags -f {{.Module}} "$package_path")
+
+		# Build a standard Go test binary with coverage instrumentation
+		# Note: We don't use -libfuzzer here because the coverage runner expects
+		# a Go test binary that can be run with -test.run and -test.coverprofile
+		go test $tags \
+		    -c \
+		    -o "$OUT/$fuzzer" \
+		    -coverpkg="$fuzzed_repo/..." \
+		    -covermode=atomic \
+		    "$package_path"
+
+		save_function_name "$fuzzer" "$function" "$function_names_file"
+
+		abspath_repo=$(go list -m $tags -f {{.Dir}} $fuzzed_repo || go list $tags -f {{.Dir}} $fuzzed_repo)
+		# Give equivalence to absolute paths in another file, as go test -cover uses golangish pkg.Dir
+		echo "s=$fuzzed_repo"="$abspath_repo"= > "$OUT/$fuzzer.gocovpath"
+		add_to_list_of_native_fuzzers "${fuzzer}"
+
+		# Mark this as a v3 fuzzer for the coverage runner
+		add_to_list_of_v3_fuzzers "${fuzzer}"
+
+		# Note: v3 fuzzers use Go's native -test.fuzzlibfuzzercorpus flag for coverage,
+		# which reads libFuzzer corpus directly without needing parameter type info.
+		# The Go binary already knows the types from the compiled fuzz function.
+	else
+		# Build using native -libfuzzer flag (produces an archive with LLVMFuzzerTestOneInput)
+		go test $tags \
+		    -libfuzzer="$function" \
+		    -c \
+		    -o "${fuzzer}.a" \
+		    "$package_path"
+
+		# Link the archive with clang and the libFuzzer engine
+		$CXX $CXXFLAGS $LIB_FUZZING_ENGINE "${fuzzer}.a" -lpthread -o "$OUT/$fuzzer"
+		rm -f "${fuzzer}.a"
+	fi
+
+	cd "$current_dir"
+}
+
+# Adds a fuzzer to the list of v3 fuzzers (using native Go libFuzzer support)
+add_to_list_of_v3_fuzzers() {
+  local new_element="$1"
+  local file="$OUT/native_go_fuzzers_v3.json"
+
+  if [ -z "$new_element" ]; then
+    echo "Usage: add_to_list_of_v3_fuzzers \"element to add\""
+    return 1
+  fi
+
+  # Ensure the directory exists
+  if [ ! -d "$(dirname "$file")" ]; then
+    echo "Error: Directory $(dirname "$file") does not exist."
+    return 1
+  fi
+
+  # Initialize the file if it doesn't exist or is empty
+  if [ ! -s "$file" ]; then
+    echo "[]" > "$file"
+  fi
+
+  # Append the new element to the list using jq
+  jq --arg item "$new_element" '. += [$item]' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
+}

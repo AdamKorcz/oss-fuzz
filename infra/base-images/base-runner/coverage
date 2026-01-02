@@ -168,6 +168,28 @@ is_std_lib_fuzzer() {
   fi
 }
 
+# Check if a fuzzer is a v3 fuzzer (uses native Go libFuzzer support)
+is_v3_fuzzer() {
+  local element="$1"
+  local file="$OUT/native_go_fuzzers_v3.json"
+
+  if [ -z "$element" ]; then
+    echo "Usage: is_v3_fuzzer \"element to check\""
+    return 1
+  fi
+
+  if [ ! -s "$file" ]; then
+    echo "false"
+    return 0
+  fi
+
+  if jq -e --arg item "$element" 'index($item) != null' "$file" > /dev/null; then
+    echo "true"
+  else
+    echo "false"
+  fi
+}
+
 # get_function_name reads a value from a simple json format:
 # 
 # {
@@ -226,39 +248,51 @@ function run_go_fuzz_target {
 
   if [[ "$(is_std_lib_fuzzer "${target}")" == "true" ]]; then
 
-    # Create the corpus dir testdata/fuzz/NAME
-    mkdir -p "${OUT}/testdata/fuzz/${function_name}"
+    # For v3 fuzzers (native Go libFuzzer mode), use Go's built-in -test.fuzzlibfuzzercorpus flag.
+    # This reads libFuzzer corpus files directly without needing external conversion tools.
+    # The Go binary knows the parameter types from compilation and deserializes automatically.
+    #
+    # For v2 fuzzers, use the legacy convertLibFuzzerTestcaseToStdLibGo approach.
+    if [[ "$(is_v3_fuzzer "${target}")" == "true" ]]; then
+      pushd $OUT
+        timeout "$TIMEOUT" \
+          "$OUT/$target" \
+          -test.run="^${function_name}\$" \
+          -test.fuzzlibfuzzercorpus="${FUZZ_CORPUS_DIR}" \
+          -test.coverprofile "$DUMPS_DIR/$target.profdata" \
+          &> "$LOGS_DIR/$target.log"
+        if (( $? != 0 )); then
+          echo "Error occured while running v3 std lib fuzzer $target:"
+          cat $LOGS_DIR/$target.log
+        fi
+      popd
+    else
+      # Legacy v2 approach: convert corpus then run
+      mkdir -p "${OUT}/testdata/fuzz/${function_name}"
 
-    # Now we copy the corpus generated at runtime into FUZZ_CORPUS_DIR.
-    # In the process, we convert it from a raw byte slice to files of
-    # the std lib Go corpus file format, eg:
-    # 
-    # go test fuzz v1
-    # int8(42)
-    # string("hello")
-    # 
-    # The convertLibFuzzerTestcaseToStdLibGo binary handles the entire
-    # process for that.
-    convertLibFuzzerTestcaseToStdLibGo -convert-seeds \
-      -params-json $OUT/fuzzer-parameters.json \
-      -fuzzer-func "${target}" \
-      -fuzzerBinaryName $target \
-      -seeds-dir "${FUZZ_CORPUS_DIR}" \
-      -out-dir "${OUT}/testdata/fuzz/${function_name}"
+      # Convert libFuzzer corpus to Go format using go-118-fuzz-build tool
+      convertLibFuzzerTestcaseToStdLibGo -convert-seeds \
+        -params-json $OUT/fuzzer-parameters.json \
+        -fuzzer-func "${target}" \
+        -fuzzerBinaryName $target \
+        -seeds-dir "${FUZZ_CORPUS_DIR}" \
+        -out-dir "${OUT}/testdata/fuzz/${function_name}"
 
-    pushd $OUT
-      timeout "$TIMEOUT" \
-        "$OUT/$target" \
-        -test.run="^${function_name}\$" \
-        -test.coverprofile "$DUMPS_DIR/$target.profdata" \
-        &> "$LOGS_DIR/$target.log"
-      if (( $? != 0 )); then
-        echo "Error occured while running std lib fuzzer $target:"
-        cat $LOGS_DIR/$target.log
-      fi
-    popd
-    # cleanup after native go fuzzers
-    rm -r "${OUT}/testdata/fuzz/${function_name}"
+      pushd $OUT
+        timeout "$TIMEOUT" \
+          "$OUT/$target" \
+          -test.run="^${function_name}\$" \
+          -test.coverprofile "$DUMPS_DIR/$target.profdata" \
+          &> "$LOGS_DIR/$target.log"
+        if (( $? != 0 )); then
+          echo "Error occured while running std lib fuzzer $target:"
+          cat $LOGS_DIR/$target.log
+        fi
+      popd
+      # cleanup after native go fuzzers
+      rm -r "${OUT}/testdata/fuzz/${function_name}"
+    fi
+
     # The std lib fuzzers are renamed to "*_fuzz_.go" during "infra/helper.py build_fuzzers".
     # They are are therefore refered to as "*_fuzz_.go" in the profdata files.
     # Since the copies named "*_fuzz_.go" do not exist in the file tree during

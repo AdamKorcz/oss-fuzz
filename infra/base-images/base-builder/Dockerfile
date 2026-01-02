@@ -170,6 +170,7 @@ COPY bazel_build_fuzz_tests \
     compile_libfuzzer \
     compile_native_go_fuzzer \
     compile_native_go_fuzzer_v2 \
+    compile_native_go_fuzzer_v3 \
     go_utils.sh \
     compile_python_fuzzer \
     debug_afl \
