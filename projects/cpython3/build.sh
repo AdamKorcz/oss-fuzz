@@ -30,7 +30,12 @@ CFLAGS="${CFLAGS} -UNDEBUG"
 # We use some internal CPython API.
 CFLAGS="${CFLAGS} -IInclude/internal/"
 
+# Build all stdlib C extension modules statically into libpython
+# rather than as shared .so files, so they are linked into the fuzzers.
+export MODULE_BUILDTYPE=static
+
 FLAGS=()
+FLAGS+=("--disable-test-modules")
 case $SANITIZER in
   address)
     FLAGS+=("--with-address-sanitizer")
@@ -49,8 +54,21 @@ case $SANITIZER in
 esac
 ./configure "${FLAGS[@]:-}" --prefix $OUT
 
+# When building modules statically, HACL* crypto object files must be linked
+# via static archives (.a) instead of raw .o files to avoid duplicate symbols
+# across _blake2, _sha*, _hmac modules that share HACL* objects.
+# Only patch the MODULE_ dependency lines, not the LIBHACL variable definitions.
+sed -i '/^MODULE__/s/LIB_SHARED/LIB_STATIC/g' Makefile
+
 # We use altinstall to avoid having the Makefile create symlinks
 make -j$(nproc) altinstall
+
+# When modules are statically linked into libpython, the fuzzer binaries
+# need the system libraries that those modules depend on (e.g. -lsqlite3,
+# -lz, -lssl). These are tracked in the Makefile's MODLIBS variable but
+# are not included by python-config --ldflags.
+PYTHON=$(ls $OUT/bin/python3.* | grep -v config | head -1)
+MODLIBS=$($PYTHON -c "import sysconfig; print(sysconfig.get_config_var('MODLIBS'))")
 
 FUZZ_DIR=Modules/_xxtestfuzz
 for fuzz_test in $(cat $FUZZ_DIR/fuzz_tests.txt)
@@ -61,7 +79,7 @@ do
     -o $WORK/$fuzz_test.o
   # Link with C++ compiler to appease libfuzzer
   $CXX $CXXFLAGS -rdynamic $WORK/$fuzz_test.o -o $OUT/$fuzz_test \
-    $LIB_FUZZING_ENGINE $($OUT/bin/python*-config --ldflags --embed)
+    $LIB_FUZZING_ENGINE $($OUT/bin/python*-config --ldflags --embed) $MODLIBS
 
   # Zip up and copy any seed corpus
   if [ -d "${FUZZ_DIR}/${fuzz_test}_corpus" ]; then
