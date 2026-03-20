@@ -50,11 +50,54 @@ sed -i '1 s/^.*$/#include "python_coverage.h"/g' Python/ceval.c
 sed -i 's/case TARGET\(.*\): {/\0\nfuzzer_record_code_coverage(f->f_code, f->f_lasti);/g' Python/ceval.c
 
 ./configure "${FLAGS[@]:-}" --prefix=$CPYTHON_INSTALL_PATH
-make -j$(nproc)
+
+# Build most extension modules statically into libpython so coverage
+# instrumentation can see them (shared .so modules are invisible to coverage).
+sed -i '0,/^\*shared\*/{s/^\*shared\*/*static*/}' Modules/Setup.stdlib
+for mod in _tkinter _curses _curses_panel \
+           xxsubtype _xxtestfuzz _testbuffer _testinternalcapi \
+           _testcapi _testlimitedcapi _testclinic _testclinic_limited; do
+  sed -i "s/^${mod} /#&/" Modules/Setup.stdlib
+done
+
+# HACL workaround: clang generates incorrect COMDAT section grouping for
+# ASAN-instrumented switch tables in HACL code, causing "relocation refers
+# to a discarded section" errors with both GNU ld and lld. Compile HACL
+# files without ASAN (the Python hash module wrappers are still instrumented).
+HACL_INCLUDES="-I./Modules/_hacl -I./Modules/_hacl/include \
+  -D_BSD_SOURCE -D_DEFAULT_SOURCE \
+  -I. -I./Include -I./Include/internal -I./Include/internal/mimalloc \
+  -DPy_BUILD_CORE_BUILTIN -fPIC"
+for hacl_src in Modules/_hacl/Hacl_Hash_*.c Modules/_hacl/Hacl_HMAC.c \
+                Modules/_hacl/Hacl_Streaming_HMAC.c Modules/_hacl/Lib_Memzero0.c; do
+  [ -f "./$hacl_src" ] || continue
+  extra_flags=""
+  case "$hacl_src" in
+    *Simd128*) extra_flags="-msse4.1 -DHACL_CAN_COMPILE_VEC128" ;;
+    *Simd256*) extra_flags="-mavx2 -DHACL_CAN_COMPILE_VEC256" ;;
+  esac
+  clang -c -O2 -fno-omit-frame-pointer -DNDEBUG $extra_flags \
+    $HACL_INCLUDES -o "${hacl_src%.c}.o" "./$hacl_src"
+done
+touch Modules/_hacl/*.o
+
+make -j$(nproc) LDFLAGS="-Wl,--allow-multiple-definition"
 make install
 
 cp -R $CPYTHON_INSTALL_PATH $OUT/
 $OUT/cpython-install/bin/python3 -m pip install hypothesis
+
+# Export the libraries needed by statically-linked modules so the fuzzer
+# Makefile can link against them (python3-config doesn't include these).
+CPYTHON_MODLIBS=$($OUT/cpython-install/bin/python3 -c \
+  "import sysconfig; v=sysconfig.get_config_var('MODLIBS') or ''; print(' '.join(v.replace('\\\\','').split()))")
+# Flatten to single line and resolve relative .a paths to absolute.
+CPYTHON_MODLIBS=$(echo $CPYTHON_MODLIBS | tr -s ' ' | sed "s|Modules/|$SRC/cpython/Modules/|g")
+export CPYTHON_MODLIBS
+# HACL static archives aren't in MODLIBS — they're linked via MODULE_*_LDFLAGS
+# in CPython's Makefile. Export them separately for the fuzzer Makefile.
+# Link HACL .o files directly (the .a archives may not exist yet).
+export CPYTHON_HACL_LIBS="$(echo $SRC/cpython/Modules/_hacl/*.o)"
 
 cd $SRC/library-fuzzers
 make
@@ -94,7 +137,7 @@ cp $SRC/library-fuzzers/fuzzer-decode.dict $OUT/
 
 cp $SRC/library-fuzzers/fuzzer-ast $OUT/
 cp $SRC/library-fuzzers/ast.py $OUT/
-cp $SRC/cpython/Modules/_xxtestfuzz/dictionaries/fuzz_pycompile.dict $OUT/fuzzer-ast.dict
+cp $SRC/library-fuzzers/fuzzer-ast.dict $OUT/
 # Use CPython source code as seed corpus
 mkdir corp-ast/
 find $SRC/cpython -type f -name '*.py' -size -4097c -exec cp {} corp-ast/ \;
@@ -105,30 +148,35 @@ cp $SRC/library-fuzzers/re.py $OUT/
 
 cp $SRC/library-fuzzers/fuzzer-zipfile $OUT/
 cp $SRC/library-fuzzers/zipfile.py $OUT/
-zip -j $OUT/fuzzer-zipfile_seed_corpus.zip corp-zipfile/*
 
 cp $SRC/library-fuzzers/fuzzer-zipfile-hypothesis $OUT/
 cp $SRC/library-fuzzers/zipfile_hypothesis.py $OUT/
 
 cp $SRC/library-fuzzers/fuzzer-tarfile $OUT/
 cp $SRC/library-fuzzers/tarfile.py $OUT/
-zip -j $OUT/fuzzer-tarfile_seed_corpus.zip corp-tarfile/*
 
 cp $SRC/library-fuzzers/fuzzer-tarfile-hypothesis $OUT/
 cp $SRC/library-fuzzers/tarfile_hypothesis.py $OUT/
 
 cp $SRC/library-fuzzers/fuzzer-configparser $OUT/
 cp $SRC/library-fuzzers/configparser.py $OUT/
-zip -j $OUT/fuzzer-configparser_seed_corpus.zip corp-configparser/*
 
 cp $SRC/library-fuzzers/fuzzer-tomllib $OUT/
 cp $SRC/library-fuzzers/tomllib.py $OUT/
-zip -j $OUT/fuzzer-tomllib_seed_corpus.zip corp-tomllib/*
 
 cp $SRC/library-fuzzers/fuzzer-plistlib $OUT/
 cp $SRC/library-fuzzers/plist.py $OUT/
 
-cp $SRC/library-fuzzers/fuzzer-zoneinfo $OUT/
-cp $SRC/library-fuzzers/zoneinfo.py $OUT/
-zip -j $OUT/fuzzer-zoneinfo_seed_corpus.zip corp-zoneinfo/*
+# Module fuzzers (ported from C++ to Python).
+# Inline fuzz_dp.py into each fuzzer script at build time so the deployed
+# fuzzer has no file dependencies beyond cpython-install/.
+MODULE_FUZZERS="array binascii codecs collections compression crypto
+  csv_module ctypes datetime dbm dis expat ioops json_decode json_encode
+  locale mmap operator pickle sqlite3 ssl time unicodedata"
+for name in $MODULE_FUZZERS; do
+  cp $SRC/library-fuzzers/fuzzer-${name//_/-} $OUT/
+  # Concatenate fuzz_dp.py + fuzzer script (with import line removed).
+  cat $SRC/library-fuzzers/fuzz_dp.py > $OUT/fuzz_${name}.py
+  grep -v '^from fuzz_dp import' $SRC/library-fuzzers/fuzz_${name}.py >> $OUT/fuzz_${name}.py
+done
 

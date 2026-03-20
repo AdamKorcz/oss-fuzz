@@ -13,7 +13,5 @@ fuzzing_engines:
   - honggfuzz
 sanitizers:
  - address
- - memory:
-    experimental: True
- - undefined:
-    experimental: True
+ # Temporarily disabled (see google/oss-fuzz#14253)
+ # - undefined
